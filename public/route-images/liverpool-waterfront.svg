@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Liverpool waterfront illustration</title>
+  <desc id="desc">Warm evening light over stylised dock buildings and the River Mersey.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#9fb9c8"/><stop offset=".58" stop-color="#ead7bd"/><stop offset="1" stop-color="#c8896f"/></linearGradient>
+    <linearGradient id="water" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#617f8b"/><stop offset="1" stop-color="#334f5d"/></linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#sky)"/>
+  <circle cx="1260" cy="205" r="72" fill="#f4dfb4" opacity=".85"/>
+  <path d="M0 550h1600v350H0z" fill="url(#water)"/>
+  <path d="M0 610c260-48 470 42 760-4 310-50 525 24 840-20v34c-315 44-530-28-840 20-290 46-500-44-760 4z" fill="#e7ded0" opacity=".2"/>
+  <g fill="#4a5054"><path d="M180 390h310v205H180z"/><path d="M215 330h75v60h-75z"/><path d="M360 345h85v45h-85z"/><path d="M535 420h260v175H535z"/><path d="M865 360h170v235H865z"/><path d="M1090 430h300v165h-300z"/></g>
+  <g fill="#e8c98e"><path d="M215 440h48v72h-48zM300 440h48v72h-48zM385 440h48v72h-48z"/><path d="M585 465h45v65h-45zM675 465h45v65h-45z"/><path d="M910 410h40v72h-40zM970 410h40v72h-40z"/><path d="M1145 470h52v58h-52zM1240 470h52v58h-52z"/></g>
+  <path d="M70 585h1440" stroke="#d6b27c" stroke-width="16"/>
+  <path d="M980 625c90 0 126 18 170 48H820c46-30 82-48 160-48z" fill="#f0eee6"/><path d="M955 600h55v28h-55z" fill="#f0eee6"/>
+</svg>

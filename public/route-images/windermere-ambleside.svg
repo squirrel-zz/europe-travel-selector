@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Lake Windermere illustration</title>
+  <desc id="desc">Layered green fells reflected in calm blue water with a small passenger boat.</desc>
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#a9c5cf"/><stop offset="1" stop-color="#e8e5d6"/></linearGradient>
+    <linearGradient id="lake" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#718f98"/><stop offset="1" stop-color="#3f6470"/></linearGradient>
+  </defs>
+  <rect width="1600" height="900" fill="url(#sky)"/>
+  <path d="M0 510L260 245l250 225 265-315 320 330 220-220 285 255v175H0z" fill="#667d69"/>
+  <path d="M0 565l315-205 220 170 265-230 270 230 235-145 295 190v130H0z" fill="#84947a"/>
+  <path d="M0 585h1600v315H0z" fill="url(#lake)"/>
+  <g opacity=".25" stroke="#e7eee9" stroke-width="8"><path d="M80 685h460M980 650h420M300 790h560M1020 820h300"/></g>
+  <path d="M670 680h300l-55 78H730z" fill="#f2eee2"/><path d="M750 595h130v90H750z" fill="#f2eee2"/><path d="M805 525v78" stroke="#3f4f52" stroke-width="12"/><path d="M815 535l115 55H815z" fill="#a65d4a"/>
+  <path d="M0 820c185-105 315-110 505 0v80H0zM1220 820c150-85 250-88 380 0v80h-380z" fill="#5a725d"/>
+</svg>

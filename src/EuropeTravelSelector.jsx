@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { AlertCircle, ChevronDown, ChevronUp, Eye, EyeOff, Filter, Heart, Info, LayoutGrid, RotateCcw, Scale, Table2, X } from "lucide-react";
+import { MANCHESTER_WEEKEND_ROUTES } from "./manchesterWeekendRoutes";
 
 /* ============================================================
    EUROPE TRAVEL SELECTOR
@@ -34,7 +35,8 @@ const BASE = {
   parentCategory: "Land", tripTypes: [], countries: [], regions: [], mainStops: [],
   description: "", highlights: [], drawbacks: [],
   bestMonths: [], acceptableMonths: [], unsuitableMonths: [], seasonalWindow: null,
-  minimumDays: 2, idealDays: 4, maximumDays: 7,
+  minimumDurationDays: 2, idealDurationDays: 4, maximumDurationDays: 7,
+  travelStyles: [],
   budgetMinGBP: null, budgetTypicalGBP: null, budgetMaxGBP: null,
   budgetBasis: "Per person, twin-share, incl. transport + accommodation (estimate)",
   budgetConfidence: "medium",
@@ -55,8 +57,39 @@ const BASE = {
   onceInALifetimeScore: 5, revisitScore: 6,
   tags: [], officialSources: [],
   estimated: true, liveVerificationNeeded: false, sourceSection: "",
+  isManchesterWeekendRoute: false, routeBase: null, region: null, routeType: null,
+  weekendRouteType: null, manchesterJourneyTime: null, likelyTransportMode: null,
+  directConnectionStatus: "unknown", majorTransferCountToBase: null,
+  localConnectionsRequired: false, carDependency: "unnecessary",
+  fridayEveningFeasible: "uncertain", saturdayMorningFeasible: "uncertain",
+  sundayEveningReturnFeasible: "uncertain", weekendTimingNote: null,
+  weekendSuitability: null, weekendSuitabilityEvidence: null,
+  weekendPlanningEstimate: false, evidenceNote: null,
+  imageUrl: null, imageAlt: null, imageCredit: null,
 };
-const R = (o) => ({ ...BASE, ...o });
+const TRAVEL_STYLE_WINDOWS = {
+  "day-trip": [1, 1],
+  weekend: [2, 3],
+  "short-break": [4, 5],
+  "one-week": [6, 8],
+  "longer-trip": [9, 21],
+};
+const inferredTravelStyles = (minimum, maximum) => Object.entries(TRAVEL_STYLE_WINDOWS)
+  .filter(([, [styleMin, styleMax]]) => minimum <= styleMax && maximum >= styleMin)
+  .map(([style]) => style);
+const R = (o) => {
+  const minimumDurationDays = o.minimumDurationDays ?? BASE.minimumDurationDays;
+  const idealDurationDays = o.idealDurationDays ?? BASE.idealDurationDays;
+  const maximumDurationDays = o.maximumDurationDays ?? BASE.maximumDurationDays;
+  return {
+    ...BASE,
+    ...o,
+    minimumDurationDays,
+    idealDurationDays,
+    maximumDurationDays,
+    travelStyles: o.travelStyles ?? inferredTravelStyles(minimumDurationDays, maximumDurationDays),
+  };
+};
 
 /* ============================ ROUTES ============================ */
 const ROUTES = [
@@ -69,7 +102,7 @@ R({ id:"fjords-cruise", routeName:"Norwegian Fjords Cruise from the UK", shortNa
   highlights:["No-fly departure (Liverpool/Southampton/Newcastle)","Unpack once, four fjord days","Best older-traveller value in the guide"],
   drawbacks:["Sea days can feel slow","Excursions cost extra"],
   bestMonths:[5,6,7,8], acceptableMonths:[4,9], unsuitableMonths:[11,12,1,2],
-  minimumDays:7, idealDays:7, maximumDays:14,
+  minimumDurationDays:7, idealDurationDays:7, maximumDurationDays:14,
   budgetMinGBP:600, budgetTypicalGBP:850, budgetMaxGBP:1500,
   budgetBasis:"Inside cabin, twin-share, 7 nights, UK departure — no flights needed",
   departurePorts:["Liverpool","Southampton","Newcastle"], directFromManchester:"not-applicable",
@@ -91,7 +124,7 @@ R({ id:"baltic-cruise", routeName:"Baltic Capitals Cruise", shortName:"Baltic Ca
   highlights:["Four capitals, one cabin","Tallinn's medieval old town","Long summer evenings on deck"],
   drawbacks:["Port days are short for big cities","Longer itinerary (12+ nights)"],
   bestMonths:[6,7,8], acceptableMonths:[5,9], unsuitableMonths:[11,12,1,2,3],
-  minimumDays:10, idealDays:12, maximumDays:14,
+  minimumDurationDays:10, idealDurationDays:12, maximumDurationDays:14,
   budgetMinGBP:900, budgetTypicalGBP:1300, budgetMaxGBP:2200,
   departurePorts:["Southampton"], directFromManchester:"not-applicable",
   ManchesterAccessScore:6, approximateManchesterToStartHours:4,
@@ -111,7 +144,7 @@ R({ id:"westmed-cruise", routeName:"Western Mediterranean Cruise", shortName:"We
   highlights:["History + food + sun in one loop","Fly-cruise option shortens it","Good shoulder-season value"],
   drawbacks:["Peak summer = hot, crowded ports","Rome/Naples port days need stamina"],
   bestMonths:[5,6,9,10], acceptableMonths:[4,7,8], unsuitableMonths:[1,2,12],
-  minimumDays:7, idealDays:10, maximumDays:14,
+  minimumDurationDays:7, idealDurationDays:10, maximumDurationDays:14,
   budgetMinGBP:700, budgetTypicalGBP:1100, budgetMaxGBP:2000,
   departurePorts:["Southampton","Barcelona (fly-cruise)"], directFromManchester:"yes",
   ManchesterAccessScore:6, approximateManchesterToStartHours:5,
@@ -131,7 +164,7 @@ R({ id:"canary-cruise", routeName:"Canary Islands Winter-Sun Cruise", shortName:
   highlights:["Winter sun, no flying","Madeira flower stop","Calm all-inclusive pace"],
   drawbacks:["2 sea days each way across Biscay","Biscay can be rough in winter"],
   bestMonths:[11,12,1,2,3], acceptableMonths:[4,10], unsuitableMonths:[7,8],
-  minimumDays:10, idealDays:12, maximumDays:14,
+  minimumDurationDays:10, idealDurationDays:12, maximumDurationDays:14,
   budgetMinGBP:800, budgetTypicalGBP:1100, budgetMaxGBP:1800,
   departurePorts:["Southampton"], directFromManchester:"not-applicable",
   ManchesterAccessScore:6, approximateManchesterToStartHours:4,
@@ -151,7 +184,7 @@ R({ id:"british-isles-cruise", routeName:"British Isles Cruise", shortName:"Brit
   highlights:["Orkney's neolithic sites","Departs Liverpool some seasons","No passport stress"],
   drawbacks:["Weather-dependent tendering","Scenery gentler than the fjords"],
   bestMonths:[5,6,7,8], acceptableMonths:[4,9], unsuitableMonths:[11,12,1,2],
-  minimumDays:7, idealDays:9, maximumDays:12,
+  minimumDurationDays:7, idealDurationDays:9, maximumDurationDays:12,
   budgetMinGBP:700, budgetTypicalGBP:1000, budgetMaxGBP:1700,
   departurePorts:["Liverpool","Southampton"], directFromManchester:"not-applicable",
   ManchesterAccessScore:9, approximateManchesterToStartHours:1.5,
@@ -171,7 +204,7 @@ R({ id:"hurtigruten-coastal", routeName:"Hurtigruten Norwegian Coastal Voyage", 
   highlights:["Crosses the Arctic Circle","Winter = Northern Lights promise","Real Norway, not a resort ship"],
   drawbacks:["Simpler ships than mainstream cruises","Fly via Oslo/Bergen to join"],
   bestMonths:[2,3,6,7,9,10,11], acceptableMonths:[1,4,5,8,12], unsuitableMonths:[],
-  minimumDays:6, idealDays:8, maximumDays:12,
+  minimumDurationDays:6, idealDurationDays:8, maximumDurationDays:12,
   budgetMinGBP:1100, budgetTypicalGBP:1600, budgetMaxGBP:2600,
   departureCities:["Bergen"], directFromManchester:"no",
   ManchesterAccessScore:4, approximateManchesterToStartHours:7,
@@ -190,7 +223,7 @@ R({ id:"svalbard-expedition", routeName:"Svalbard Polar Expedition Cruise", shor
   highlights:["Polar bears in the wild","Zodiac landings on tundra","Midnight sun the whole voyage"],
   drawbacks:["Very expensive","Physically needs sure footing (ship ladders, Zodiacs)"],
   bestMonths:[6,7,8], acceptableMonths:[5], unsuitableMonths:[10,11,12,1,2,3],
-  minimumDays:9, idealDays:10, maximumDays:14,
+  minimumDurationDays:9, idealDurationDays:10, maximumDurationDays:14,
   budgetMinGBP:4000, budgetTypicalGBP:5500, budgetMaxGBP:9000, budgetConfidence:"low",
   departureCities:["Longyearbyen (via Oslo)"], directFromManchester:"no",
   ManchesterAccessScore:2, approximateManchesterToStartHours:10,
@@ -210,7 +243,7 @@ R({ id:"mini-cruise-amsterdam", routeName:"Newcastle–Amsterdam Mini Cruise", s
   highlights:["Weekend-sized, hotel included","Train from Manchester to port in ~2.5h","December run pairs with Amsterdam lights"],
   drawbacks:["Only ~7 hours ashore","North Sea can roll in winter"],
   bestMonths:[4,5,6,7,8,9,12], acceptableMonths:[3,10,11], unsuitableMonths:[],
-  minimumDays:2, idealDays:3, maximumDays:3,
+  minimumDurationDays:2, idealDurationDays:3, maximumDurationDays:3,
   budgetMinGBP:150, budgetTypicalGBP:220, budgetMaxGBP:350, budgetConfidence:"high",
   departurePorts:["Newcastle"], directFromManchester:"not-applicable",
   ManchesterAccessScore:8, approximateManchesterToStartHours:3,
@@ -231,7 +264,7 @@ R({ id:"rhine-cruise", routeName:"Rhine River Cruise (Amsterdam–Basel)", short
   highlights:["Ship moors in town centres — near-zero walking","Lorelei gorge castle parade","Unpack once for four countries"],
   drawbacks:["Premium price point","Low water can alter itineraries (summer)"],
   bestMonths:[4,5,9,10], acceptableMonths:[6,7,8], unsuitableMonths:[1,2],
-  minimumDays:7, idealDays:8, maximumDays:8,
+  minimumDurationDays:7, idealDurationDays:8, maximumDurationDays:8,
   budgetMinGBP:1400, budgetTypicalGBP:1900, budgetMaxGBP:3000,
   budgetBasis:"Twin-share, 7 nights, most meals included, incl. flights to Amsterdam/Basel",
   directFromManchester:"yes", ManchesterAccessScore:8, approximateManchesterToStartHours:4,
@@ -250,7 +283,7 @@ R({ id:"danube-cruise", routeName:"Danube River Cruise (Passau–Budapest)", sho
   highlights:["Budapest parliament lit up from the water","Wachau vineyards","Three capitals, zero packing"],
   drawbacks:["Premium price point","Popular ships book out early"],
   bestMonths:[4,5,9,10], acceptableMonths:[6,7,8,12], unsuitableMonths:[1,2],
-  minimumDays:7, idealDays:8, maximumDays:8,
+  minimumDurationDays:7, idealDurationDays:8, maximumDurationDays:8,
   budgetMinGBP:1400, budgetTypicalGBP:1900, budgetMaxGBP:3000,
   budgetBasis:"Twin-share, 7 nights, most meals included, incl. flights",
   directFromManchester:"yes", ManchesterAccessScore:8, approximateManchesterToStartHours:4.5,
@@ -269,7 +302,7 @@ R({ id:"douro-cruise", routeName:"Douro Valley River Cruise", shortName:"Douro C
   highlights:["UNESCO vineyard terraces","September harvest atmosphere","Solves Porto's hills: see it from the deck"],
   drawbacks:["Premium price","Hot in high summer"],
   bestMonths:[4,5,9,10], acceptableMonths:[6], unsuitableMonths:[12,1,2],
-  minimumDays:7, idealDays:8, maximumDays:8,
+  minimumDurationDays:7, idealDurationDays:8, maximumDurationDays:8,
   budgetMinGBP:1300, budgetTypicalGBP:1800, budgetMaxGBP:2800,
   budgetBasis:"Twin-share, 7 nights, incl. flights to Porto",
   directFromManchester:"yes", ManchesterAccessScore:8, approximateManchesterToStartHours:4,
@@ -289,7 +322,7 @@ R({ id:"xmas-river-cruise", routeName:"Christmas Markets River Cruise (Rhine/Dan
   drawbacks:["Cold on deck","December cabins sell out by autumn"],
   bestMonths:[12], acceptableMonths:[11], unsuitableMonths:[5,6,7,8],
   seasonalWindow:"Late Nov – 23 Dec",
-  minimumDays:4, idealDays:5, maximumDays:8,
+  minimumDurationDays:4, idealDurationDays:5, maximumDurationDays:8,
   budgetMinGBP:900, budgetTypicalGBP:1300, budgetMaxGBP:2200,
   budgetBasis:"Twin-share, 4–5 nights, incl. flights",
   directFromManchester:"yes", ManchesterAccessScore:8, approximateManchesterToStartHours:4,
@@ -308,7 +341,7 @@ R({ id:"biscay-whale-ferry", routeName:"Biscay Whale-Watching Ferry (Portsmouth�
   highlights:["Dolphins and whales from the deck (Jul–Aug peak)","Cabin crossing feels like a mini cruise","Gateway to Picos de Europa"],
   drawbacks:["Portsmouth is far from Manchester","Biscay swell is real"],
   bestMonths:[6,7,8], acceptableMonths:[5,9], unsuitableMonths:[12,1,2],
-  minimumDays:4, idealDays:6, maximumDays:10,
+  minimumDurationDays:4, idealDurationDays:6, maximumDurationDays:10,
   budgetMinGBP:300, budgetTypicalGBP:500, budgetMaxGBP:900,
   departurePorts:["Portsmouth"], directFromManchester:"not-applicable",
   ManchesterAccessScore:4, approximateManchesterToStartHours:5,
@@ -330,7 +363,7 @@ R({ id:"croatia-sailing", routeName:"Croatia Dalmatian Coast Sailing Week", shor
   highlights:["Anchor-and-swim lunches","Hvar and Vis harbour evenings","Flotilla = solo-friendly crew life"],
   drawbacks:["Boat life: ladders, motion, shared heads","July–Aug crowds and prices"],
   bestMonths:[5,6,9], acceptableMonths:[7,8], unsuitableMonths:[11,12,1,2,3],
-  minimumDays:7, idealDays:7, maximumDays:14,
+  minimumDurationDays:7, idealDurationDays:7, maximumDurationDays:14,
   budgetMinGBP:700, budgetTypicalGBP:1100, budgetMaxGBP:2000,
   directFromManchester:"seasonal", ManchesterAccessScore:7, approximateManchesterToStartHours:5,
   typicalTransferLevel:"low", hotelChanges:"none",
@@ -349,7 +382,7 @@ R({ id:"cyclades-hopping", routeName:"Cyclades Island Hopping (Athens–Paros–
   highlights:["Naxos tavernas + beaches","Santorini caldera sunset finale","Ferries are the scenic bit, not a chore"],
   drawbacks:["Luggage on/off ferries 3–4 times","Santorini = crowds + steps"],
   bestMonths:[5,6,9], acceptableMonths:[4,10,7,8], unsuitableMonths:[12,1,2],
-  minimumDays:7, idealDays:8, maximumDays:14,
+  minimumDurationDays:7, idealDurationDays:8, maximumDurationDays:14,
   budgetMinGBP:550, budgetTypicalGBP:800, budgetMaxGBP:1400,
   directFromManchester:"yes", ManchesterAccessScore:7, approximateManchesterToStartHours:5.5,
   ferryPossible:true, typicalTransferLevel:"high", hotelChanges:"high",
@@ -368,7 +401,7 @@ R({ id:"canary-hopping", routeName:"Canary Islands Hopping (Tenerife–La Gomera
   highlights:["Teide + laurel cloud forests","Year-round 20°C+","Slow 2-island version is very gentle"],
   drawbacks:["Inter-island ferries need planning","Resort strips easy to accidentally book"],
   bestMonths:[1,2,3,11,12,4], acceptableMonths:[5,10], unsuitableMonths:[],
-  minimumDays:6, idealDays:8, maximumDays:14,
+  minimumDurationDays:6, idealDurationDays:8, maximumDurationDays:14,
   budgetMinGBP:450, budgetTypicalGBP:700, budgetMaxGBP:1200,
   directFromManchester:"yes", ManchesterAccessScore:7, approximateManchesterToStartHours:6,
   ferryPossible:true, typicalTransferLevel:"medium", hotelChanges:"medium",
@@ -386,7 +419,7 @@ R({ id:"azores-hopping", routeName:"Azores Island Hopping (São Miguel–Terceir
   highlights:["Sete Cidades twin crater lakes","Spring blue-whale migration","Hydrangea-lined roads"],
   drawbacks:["No Manchester direct — via Lisbon","Weather changes hourly"],
   bestMonths:[5,6,7,8,9], acceptableMonths:[4,10], unsuitableMonths:[12,1,2],
-  minimumDays:5, idealDays:7, maximumDays:12,
+  minimumDurationDays:5, idealDurationDays:7, maximumDurationDays:12,
   budgetMinGBP:550, budgetTypicalGBP:800, budgetMaxGBP:1300,
   directFromManchester:"no", ManchesterAccessScore:4, approximateManchesterToStartHours:9,
   ferryPossible:true, typicalTransferLevel:"high", hotelChanges:"medium",
@@ -405,7 +438,7 @@ R({ id:"hebrides-hopping", routeName:"Scottish Hebrides Island Hopping (Oban–M
   highlights:["Iona abbey at golden hour","No flights: train to Oban","Hopscotch ferry tickets keep it cheap"],
   drawbacks:["Weather is the itinerary's boss","Foot-passenger buses on islands are sparse"],
   bestMonths:[5,6,9], acceptableMonths:[4,7,8,10], unsuitableMonths:[12,1,2],
-  minimumDays:4, idealDays:7, maximumDays:10,
+  minimumDurationDays:4, idealDurationDays:7, maximumDurationDays:10,
   budgetMinGBP:350, budgetTypicalGBP:550, budgetMaxGBP:900,
   directFromManchester:"not-applicable", ManchesterAccessScore:7, approximateManchesterToStartHours:6,
   flightRequired:false, ferryPossible:true, trainPossible:true,
@@ -425,7 +458,7 @@ R({ id:"malta-gozo", routeName:"Malta–Gozo–Comino Trio", shortName:"Malta & 
   highlights:["Valletta + Mdina golden-stone cities","One hotel the whole trip","English widely spoken — easy with Mum"],
   drawbacks:["Valletta has steep stepped streets in places","High summer is fiercely hot"],
   bestMonths:[4,5,6,10], acceptableMonths:[3,9,11], unsuitableMonths:[7,8],
-  minimumDays:4, idealDays:5, maximumDays:8,
+  minimumDurationDays:4, idealDurationDays:5, maximumDurationDays:8,
   budgetMinGBP:300, budgetTypicalGBP:450, budgetMaxGBP:800,
   directFromManchester:"yes", ManchesterAccessScore:8, approximateManchesterToStartHours:5,
   ferryPossible:true, typicalTransferLevel:"low", hotelChanges:"none",
@@ -444,7 +477,7 @@ R({ id:"bernina-express", routeName:"Bernina Express (Chur–Tirano)", shortName
   highlights:["Landwasser Viaduct moment","Glacier views from a panorama car","Snow version is a second, different trip"],
   drawbacks:["Swiss prices around the journey","Panorama cars need seat reservations"],
   bestMonths:[6,7,8,9,1,2], acceptableMonths:[5,10,12,3], unsuitableMonths:[],
-  minimumDays:2, idealDays:3, maximumDays:5,
+  minimumDurationDays:2, idealDurationDays:3, maximumDurationDays:5,
   budgetMinGBP:350, budgetTypicalGBP:550, budgetMaxGBP:900,
   directFromManchester:"yes", ManchesterAccessScore:8, approximateManchesterToStartHours:6,
   trainPossible:true, typicalTransferLevel:"medium", hotelChanges:"low",
@@ -462,7 +495,7 @@ R({ id:"glacier-express", routeName:"Glacier Express (Zermatt–St. Moritz)", sh
   highlights:["All-day panorama with at-seat dining","Oberalp Pass snowscapes","Pairs with Gornergrat/Matterhorn"],
   drawbacks:["Full day seated (fine for some, long for others)","Priciest single scenic ticket in the guide"],
   bestMonths:[6,7,8,9,1,2], acceptableMonths:[5,10,12,3], unsuitableMonths:[],
-  minimumDays:3, idealDays:4, maximumDays:6,
+  minimumDurationDays:3, idealDurationDays:4, maximumDurationDays:6,
   budgetMinGBP:500, budgetTypicalGBP:750, budgetMaxGBP:1200,
   directFromManchester:"yes", ManchesterAccessScore:8, approximateManchesterToStartHours:7,
   trainPossible:true, typicalTransferLevel:"medium", hotelChanges:"low",
@@ -480,7 +513,7 @@ R({ id:"flam-nutshell", routeName:"Flåm Railway & Norway in a Nutshell", shortN
   highlights:["One of the world's steepest standard-gauge lines","Fjord cruise leg included","Works Bergen→Oslo as a moving day"],
   drawbacks:["Norway prices","Peak-summer coach-tour crowds at Flåm"],
   bestMonths:[5,6,7,8,9], acceptableMonths:[4,10], unsuitableMonths:[1,2],
-  minimumDays:3, idealDays:4, maximumDays:7,
+  minimumDurationDays:3, idealDurationDays:4, maximumDurationDays:7,
   budgetMinGBP:550, budgetTypicalGBP:800, budgetMaxGBP:1300,
   directFromManchester:"no", ManchesterAccessScore:5, approximateManchesterToStartHours:7,
   trainPossible:true, ferryPossible:true, typicalTransferLevel:"medium", hotelChanges:"medium",
@@ -498,7 +531,7 @@ R({ id:"goldenpass", routeName:"GoldenPass Express (Montreux–Interlaken)", sho
   highlights:["Lavaux vineyard views","Connects two classic Swiss bases","Quieter than Glacier/Bernina"],
   drawbacks:["Less dramatic than Bernina","Swiss prices"],
   bestMonths:[6,7,8,9], acceptableMonths:[5,10,1,2], unsuitableMonths:[],
-  minimumDays:2, idealDays:3, maximumDays:5,
+  minimumDurationDays:2, idealDurationDays:3, maximumDurationDays:5,
   budgetMinGBP:350, budgetTypicalGBP:550, budgetMaxGBP:900,
   directFromManchester:"yes", ManchesterAccessScore:8, approximateManchesterToStartHours:5,
   trainPossible:true, typicalTransferLevel:"low", hotelChanges:"low",
@@ -516,7 +549,7 @@ R({ id:"west-highland", routeName:"West Highland Line & Jacobite Steam (Glasgow�
   highlights:["Glenfinnan Viaduct by steam train","Rannoch Moor wilderness","Cheapest world-class rail trip from home"],
   drawbacks:["Jacobite sells out months ahead","Highland weather roulette"],
   bestMonths:[5,6,9], acceptableMonths:[4,7,8,10], unsuitableMonths:[],
-  minimumDays:2, idealDays:3, maximumDays:5,
+  minimumDurationDays:2, idealDurationDays:3, maximumDurationDays:5,
   budgetMinGBP:200, budgetTypicalGBP:320, budgetMaxGBP:550, budgetConfidence:"high",
   directFromManchester:"not-applicable", ManchesterAccessScore:9, approximateManchesterToStartHours:3.5,
   flightRequired:false, trainPossible:true, typicalTransferLevel:"low", hotelChanges:"low",
@@ -534,7 +567,7 @@ R({ id:"cinque-terre-rail", routeName:"Cinque Terre Coastal Railway", shortName:
   highlights:["Villages 5 min apart by train","Manarola sunset viewpoint","Optional coastal path sections"],
   drawbacks:["Villages themselves are steep and stepped","Summer day-tripper crush"],
   bestMonths:[4,5,9,10], acceptableMonths:[6,3], unsuitableMonths:[7,8],
-  minimumDays:3, idealDays:4, maximumDays:6,
+  minimumDurationDays:3, idealDurationDays:4, maximumDurationDays:6,
   budgetMinGBP:350, budgetTypicalGBP:550, budgetMaxGBP:900,
   directFromManchester:"seasonal", ManchesterAccessScore:6, approximateManchesterToStartHours:7,
   trainPossible:true, typicalTransferLevel:"medium", hotelChanges:"low",
@@ -553,7 +586,7 @@ R({ id:"caledonian-sleeper", routeName:"Caledonian Sleeper to the Highlands", sh
   highlights:["Breakfast with Highland views","Saves a hotel night","Pairs with West Highland Line"],
   drawbacks:["Cabins cost more than flying","Light sleepers may struggle"],
   bestMonths:[5,6,9], acceptableMonths:[4,7,8,10,12], unsuitableMonths:[],
-  minimumDays:2, idealDays:3, maximumDays:5,
+  minimumDurationDays:2, idealDurationDays:3, maximumDurationDays:5,
   budgetMinGBP:250, budgetTypicalGBP:400, budgetMaxGBP:700,
   directFromManchester:"not-applicable", ManchesterAccessScore:8, approximateManchesterToStartHours:2.5,
   flightRequired:false, trainPossible:true,
@@ -573,7 +606,7 @@ R({ id:"santa-claus-express", routeName:"Santa Claus Express to Lapland (Helsink
   highlights:["Wake up inside the Arctic Circle","Santa Claus Village crossing-the-line moment","Aurora chances on clear nights"],
   drawbacks:["Deep-winter cold is serious (−20°C)","Lapland activity prices add up fast"],
   bestMonths:[12,1,2], acceptableMonths:[3,11], unsuitableMonths:[6,7],
-  minimumDays:4, idealDays:5, maximumDays:7,
+  minimumDurationDays:4, idealDurationDays:5, maximumDurationDays:7,
   budgetMinGBP:700, budgetTypicalGBP:1000, budgetMaxGBP:1800,
   directFromManchester:"no", ManchesterAccessScore:4, approximateManchesterToStartHours:8,
   trainPossible:true, overnightTravelPossible:true, overnightTravelRequired:true,
@@ -592,7 +625,7 @@ R({ id:"orient-express", routeName:"Venice Simplon-Orient-Express (London–Veni
   highlights:["A moving five-star hotel","Alpine sunrise from a 1920s cabin","Ends in Venice"],
   drawbacks:["£3,500+ per person","One-night experience for the price of a fortnight elsewhere"],
   bestMonths:[5,6,9], acceptableMonths:[4,7,8,10], unsuitableMonths:[12,1,2],
-  minimumDays:2, idealDays:4, maximumDays:6,
+  minimumDurationDays:2, idealDurationDays:4, maximumDurationDays:6,
   budgetMinGBP:3500, budgetTypicalGBP:4200, budgetMaxGBP:6000, budgetConfidence:"medium",
   directFromManchester:"not-applicable", ManchesterAccessScore:7, approximateManchesterToStartHours:2.5,
   flightRequired:false, trainPossible:true, overnightTravelPossible:true, overnightTravelRequired:true,
@@ -611,7 +644,7 @@ R({ id:"interrail-central", routeName:"Interrail Central Europe (Berlin–Prague
   highlights:["Total route freedom","Four distinct capitals by rail","Passholder Eurostar fares from the UK"],
   drawbacks:["Hotel every 2–3 nights","Seat reservations needed on some legs"],
   bestMonths:[5,6,9], acceptableMonths:[4,10,7,8,12], unsuitableMonths:[],
-  minimumDays:8, idealDays:12, maximumDays:21,
+  minimumDurationDays:8, idealDurationDays:12, maximumDurationDays:21,
   budgetMinGBP:700, budgetTypicalGBP:1000, budgetMaxGBP:1600,
   directFromManchester:"not-applicable", ManchesterAccessScore:7, approximateManchesterToStartHours:9,
   flightRequired:false, trainPossible:true, overnightTravelPossible:true,
@@ -632,7 +665,7 @@ R({ id:"nc500", routeName:"North Coast 500 Road Trip", shortName:"NC500",
   highlights:["Bealach na Bà hairpins","Empty white-sand beaches","Drive from your own front door"],
   drawbacks:["Single-track roads need confidence","Accommodation books out for summer"],
   bestMonths:[5,6,9], acceptableMonths:[4,7,8,10], unsuitableMonths:[12,1,2],
-  minimumDays:5, idealDays:6, maximumDays:10,
+  minimumDurationDays:5, idealDurationDays:6, maximumDurationDays:10,
   budgetMinGBP:400, budgetTypicalGBP:600, budgetMaxGBP:1000, budgetConfidence:"high",
   directFromManchester:"not-applicable", ManchesterAccessScore:8, approximateManchesterToStartHours:6,
   flightRequired:false, drivingRequired:true, trainPossible:false,
@@ -651,7 +684,7 @@ R({ id:"iceland-ring", routeName:"Iceland Ring Road Circuit", shortName:"Iceland
   highlights:["Jökulsárlón glacier lagoon","New landscape every hour","Summer = endless daylight for driving"],
   drawbacks:["Iceland prices sting","Weather can close sections even in summer"],
   bestMonths:[6,7,8,9], acceptableMonths:[5], unsuitableMonths:[11,12,1,2,3],
-  minimumDays:7, idealDays:9, maximumDays:14,
+  minimumDurationDays:7, idealDurationDays:9, maximumDurationDays:14,
   budgetMinGBP:1000, budgetTypicalGBP:1400, budgetMaxGBP:2400,
   directFromManchester:"yes", ManchesterAccessScore:7, approximateManchesterToStartHours:4.5,
   drivingRequired:true, typicalTransferLevel:"low", hotelChanges:"high",
@@ -670,7 +703,7 @@ R({ id:"wild-atlantic", routeName:"Wild Atlantic Way (Kerry & Clare section)", s
   highlights:["Cliffs of Moher","Dingle peninsula + pub sessions","55-minute flight or ferry options"],
   drawbacks:["Rain is part of the deal","Narrow lanes on the peninsulas"],
   bestMonths:[5,6,9], acceptableMonths:[4,7,8,10], unsuitableMonths:[12,1],
-  minimumDays:4, idealDays:5, maximumDays:10,
+  minimumDurationDays:4, idealDurationDays:5, maximumDurationDays:10,
   budgetMinGBP:350, budgetTypicalGBP:550, budgetMaxGBP:900,
   directFromManchester:"yes", ManchesterAccessScore:8, approximateManchesterToStartHours:3,
   drivingRequired:true, ferryPossible:true,
@@ -689,7 +722,7 @@ R({ id:"romantic-road", routeName:"Romantic Road & Neuschwanstein (Würzburg–F
   highlights:["Rothenburg's intact walls","Neuschwanstein finale","Golden in October foliage"],
   drawbacks:["Castle interior = coach crowds","Rothenburg cobbles everywhere"],
   bestMonths:[5,6,9,10], acceptableMonths:[4,7,8,12], unsuitableMonths:[1,2],
-  minimumDays:4, idealDays:5, maximumDays:7,
+  minimumDurationDays:4, idealDurationDays:5, maximumDurationDays:7,
   budgetMinGBP:400, budgetTypicalGBP:600, budgetMaxGBP:1000,
   directFromManchester:"yes", ManchesterAccessScore:7, approximateManchesterToStartHours:4.5,
   drivingRequired:true, trainPossible:true,
@@ -708,7 +741,7 @@ R({ id:"plitvice", routeName:"Plitvice Lakes & Croatian Interior", shortName:"Pl
   highlights:["Boardwalks = level walking through waterfalls","Electric boat crosses the big lake","October colour is spectacular"],
   drawbacks:["Summer queues on the boardwalks","Needs a transfer from Zagreb/Zadar"],
   bestMonths:[5,6,9,10], acceptableMonths:[4], unsuitableMonths:[7,8,1,2],
-  minimumDays:3, idealDays:4, maximumDays:6,
+  minimumDurationDays:3, idealDurationDays:4, maximumDurationDays:6,
   budgetMinGBP:300, budgetTypicalGBP:450, budgetMaxGBP:750,
   directFromManchester:"seasonal", ManchesterAccessScore:6, approximateManchesterToStartHours:7,
   typicalTransferLevel:"medium", hotelChanges:"low",
@@ -726,7 +759,7 @@ R({ id:"dolomites", routeName:"Dolomites & Tre Cime (Cortina/Val Gardena)", shor
   highlights:["Tre Cime loop","Cable-car network opens high country to all","Alpine huts serve proper Italian lunch"],
   drawbacks:["Fly to Verona/Venice then 2h+ transfer","Weather turns fast at altitude"],
   bestMonths:[7,8,9], acceptableMonths:[6,10,1,2], unsuitableMonths:[4,11],
-  minimumDays:4, idealDays:6, maximumDays:10,
+  minimumDurationDays:4, idealDurationDays:6, maximumDurationDays:10,
   budgetMinGBP:500, budgetTypicalGBP:750, budgetMaxGBP:1300,
   directFromManchester:"seasonal", ManchesterAccessScore:5, approximateManchesterToStartHours:8,
   drivingRequired:false, typicalTransferLevel:"medium", hotelChanges:"low",
@@ -745,7 +778,7 @@ R({ id:"madeira-levada", routeName:"Madeira Levada Walks & Gardens", shortName:"
   highlights:["Levadas: level paths, big scenery","20°C in January","Funchal gardens + cable car for low-effort days"],
   drawbacks:["Some levadas have drops/tunnels — choose graded ones","Mountain weather shifts quickly"],
   bestMonths:[3,4,5,9,10,11], acceptableMonths:[1,2,6,12], unsuitableMonths:[],
-  minimumDays:5, idealDays:7, maximumDays:14,
+  minimumDurationDays:5, idealDurationDays:7, maximumDurationDays:14,
   budgetMinGBP:400, budgetTypicalGBP:600, budgetMaxGBP:1000,
   directFromManchester:"yes", ManchesterAccessScore:8, approximateManchesterToStartHours:5,
   typicalTransferLevel:"low", hotelChanges:"none",
@@ -763,7 +796,7 @@ R({ id:"danube-cycle", routeName:"Danube Cycle Path (Passau–Vienna)", shortNam
   highlights:["Flat, car-free riverside path","Luggage transferred for you","Wachau apricot orchards + wine taverns"],
   drawbacks:["6 consecutive riding days","Saddle time even if gentle"],
   bestMonths:[5,6,9], acceptableMonths:[4,7,8], unsuitableMonths:[11,12,1,2],
-  minimumDays:6, idealDays:7, maximumDays:9,
+  minimumDurationDays:6, idealDurationDays:7, maximumDurationDays:9,
   budgetMinGBP:550, budgetTypicalGBP:800, budgetMaxGBP:1200,
   directFromManchester:"yes", ManchesterAccessScore:7, approximateManchesterToStartHours:6,
   typicalTransferLevel:"medium", hotelChanges:"high",
@@ -782,7 +815,7 @@ R({ id:"jungfrau", routeName:"Jungfraujoch & Bernese Oberland (Interlaken base)"
   highlights:["Highest railway station in Europe","One base, day trips by mountain rail","Mürren car-free village"],
   drawbacks:["Jungfraujoch ticket is eye-watering","Cloud can hide everything — check webcams"],
   bestMonths:[6,7,8,9], acceptableMonths:[5,10,1,2], unsuitableMonths:[],
-  minimumDays:4, idealDays:5, maximumDays:8,
+  minimumDurationDays:4, idealDurationDays:5, maximumDurationDays:8,
   budgetMinGBP:700, budgetTypicalGBP:1000, budgetMaxGBP:1600,
   directFromManchester:"yes", ManchesterAccessScore:8, approximateManchesterToStartHours:6,
   trainPossible:true, typicalTransferLevel:"low", hotelChanges:"none",
@@ -800,7 +833,7 @@ R({ id:"zermatt", routeName:"Zermatt & Gornergrat (Matterhorn)", shortName:"Zerm
   highlights:["Matterhorn sunrise from Gornergrat","Riffelsee reflection shot","Combines with Glacier Express"],
   drawbacks:["Swiss prices at their steepest","Village busy in peak weeks"],
   bestMonths:[6,7,8,9], acceptableMonths:[5,10,12,1,2], unsuitableMonths:[],
-  minimumDays:3, idealDays:4, maximumDays:7,
+  minimumDurationDays:3, idealDurationDays:4, maximumDurationDays:7,
   budgetMinGBP:650, budgetTypicalGBP:950, budgetMaxGBP:1600,
   directFromManchester:"yes", ManchesterAccessScore:7, approximateManchesterToStartHours:7,
   trainPossible:true, typicalTransferLevel:"medium", hotelChanges:"none",
@@ -820,7 +853,7 @@ R({ id:"vienna-christmas", routeName:"Vienna Christmas Markets & Coffee Houses",
   drawbacks:["Vienna prices push a tight budget","Cold, short days"],
   bestMonths:[12], acceptableMonths:[11], unsuitableMonths:[6,7,8],
   seasonalWindow:"Mid-Nov – 26 Dec",
-  minimumDays:3, idealDays:4, maximumDays:5,
+  minimumDurationDays:3, idealDurationDays:4, maximumDurationDays:5,
   budgetMinGBP:350, budgetTypicalGBP:480, budgetMaxGBP:750,
   directFromManchester:"yes", ManchesterAccessScore:8, approximateManchesterToStartHours:4,
   typicalTransferLevel:"none", hotelChanges:"none",
@@ -839,7 +872,7 @@ R({ id:"nuremberg-christmas", routeName:"Nuremberg Christkindlesmarkt", shortNam
   drawbacks:["Usually one connection to reach (no MAN direct — verify)","Cobbles + castle hill optional"],
   bestMonths:[12], acceptableMonths:[11], unsuitableMonths:[6,7,8],
   seasonalWindow:"Late Nov – 24 Dec",
-  minimumDays:3, idealDays:3, maximumDays:5,
+  minimumDurationDays:3, idealDurationDays:3, maximumDurationDays:5,
   budgetMinGBP:300, budgetTypicalGBP:420, budgetMaxGBP:650,
   directFromManchester:"unknown", ManchesterAccessScore:5, approximateManchesterToStartHours:6,
   typicalTransferLevel:"medium", hotelChanges:"none",
@@ -858,7 +891,7 @@ R({ id:"cologne-christmas", routeName:"Cologne Cathedral Christmas Markets", sho
   drawbacks:["Busiest German market — weekend crowds","City itself is plainer beyond the markets"],
   bestMonths:[12], acceptableMonths:[11], unsuitableMonths:[6,7,8],
   seasonalWindow:"Late Nov – 23 Dec",
-  minimumDays:2, idealDays:3, maximumDays:4,
+  minimumDurationDays:2, idealDurationDays:3, maximumDurationDays:4,
   budgetMinGBP:250, budgetTypicalGBP:380, budgetMaxGBP:600,
   directFromManchester:"seasonal", ManchesterAccessScore:8, approximateManchesterToStartHours:3.5,
   typicalTransferLevel:"none", hotelChanges:"none",
@@ -877,7 +910,7 @@ R({ id:"prague-christmas", routeName:"Prague Old Town Christmas", shortName:"Pra
   drawbacks:["Cobbles everywhere — sturdy shoes","Very touristy at Christmas"],
   bestMonths:[12], acceptableMonths:[11,1], unsuitableMonths:[7,8],
   seasonalWindow:"Late Nov – 6 Jan",
-  minimumDays:3, idealDays:4, maximumDays:5,
+  minimumDurationDays:3, idealDurationDays:4, maximumDurationDays:5,
   budgetMinGBP:280, budgetTypicalGBP:400, budgetMaxGBP:600,
   directFromManchester:"yes", ManchesterAccessScore:8, approximateManchesterToStartHours:3.5,
   typicalTransferLevel:"none", hotelChanges:"none",
@@ -896,7 +929,7 @@ R({ id:"tromso-aurora", routeName:"Tromsø Northern Lights Break", shortName:"Tr
   drawbacks:["Via Oslo (no MAN direct — verify)","Clear skies never guaranteed"],
   bestMonths:[2,3,9,10], acceptableMonths:[1,11,12], unsuitableMonths:[5,6,7],
   seasonalWindow:"Sep – Mar",
-  minimumDays:4, idealDays:5, maximumDays:7,
+  minimumDurationDays:4, idealDurationDays:5, maximumDurationDays:7,
   budgetMinGBP:750, budgetTypicalGBP:1000, budgetMaxGBP:1600,
   directFromManchester:"no", ManchesterAccessScore:4, approximateManchesterToStartHours:8,
   typicalTransferLevel:"medium", hotelChanges:"none",
@@ -915,7 +948,7 @@ R({ id:"iceland-winter", routeName:"Iceland Winter: Ice Caves, Aurora & Golden C
   drawbacks:["Winter storms can cancel tours","Ice-cave tours = uneven footing (crampons)"],
   bestMonths:[2,11,3], acceptableMonths:[12,1,10], unsuitableMonths:[6,7,8],
   seasonalWindow:"Ice caves Nov – Mar",
-  minimumDays:4, idealDays:5, maximumDays:7,
+  minimumDurationDays:4, idealDurationDays:5, maximumDurationDays:7,
   budgetMinGBP:650, budgetTypicalGBP:900, budgetMaxGBP:1500,
   directFromManchester:"yes", ManchesterAccessScore:7, approximateManchesterToStartHours:4.5,
   typicalTransferLevel:"low", hotelChanges:"low",
@@ -934,7 +967,7 @@ R({ id:"lapland-igloo", routeName:"Finnish Lapland Glass Igloo & Husky Safari", 
   highlights:["Aurora from your pillow","Husky + reindeer sledges","Santa's village for the inner child"],
   drawbacks:["Igloo nights are very expensive","Deep cold (−15 to −25°C)"],
   bestMonths:[12,1,2,3], acceptableMonths:[11], unsuitableMonths:[6,7,8],
-  minimumDays:4, idealDays:5, maximumDays:7,
+  minimumDurationDays:4, idealDurationDays:5, maximumDurationDays:7,
   budgetMinGBP:1200, budgetTypicalGBP:1800, budgetMaxGBP:3000, budgetConfidence:"low",
   directFromManchester:"seasonal", ManchesterAccessScore:6, approximateManchesterToStartHours:5,
   typicalTransferLevel:"low", hotelChanges:"low",
@@ -953,7 +986,7 @@ R({ id:"lofoten-midnightsun", routeName:"Lofoten Islands Midnight Sun", shortNam
   drawbacks:["Two flights + drive to reach","Sleep needs an eye mask"],
   bestMonths:[6], acceptableMonths:[5,7], unsuitableMonths:[11,12,1],
   seasonalWindow:"Midnight sun late May – mid Jul",
-  minimumDays:5, idealDays:6, maximumDays:10,
+  minimumDurationDays:5, idealDurationDays:6, maximumDurationDays:10,
   budgetMinGBP:900, budgetTypicalGBP:1250, budgetMaxGBP:2000,
   directFromManchester:"no", ManchesterAccessScore:3, approximateManchesterToStartHours:11,
   drivingRequired:true, typicalTransferLevel:"high", hotelChanges:"medium",
@@ -973,7 +1006,7 @@ R({ id:"keukenhof", routeName:"Keukenhof Tulips & Haarlem", shortName:"Keukenhof
   drawbacks:["Hard seasonal window (bloom is weather's call)","Dutch prices strain small budgets"],
   bestMonths:[4], acceptableMonths:[3,5], unsuitableMonths:[6,7,8,9,10,11,12,1],
   seasonalWindow:"Park open ~late Mar – mid May; peak mid-Apr",
-  minimumDays:3, idealDays:4, maximumDays:5,
+  minimumDurationDays:3, idealDurationDays:4, maximumDurationDays:5,
   budgetMinGBP:320, budgetTypicalGBP:420, budgetMaxGBP:650,
   directFromManchester:"yes", ManchesterAccessScore:10, approximateManchesterToStartHours:4,
   typicalTransferLevel:"none", hotelChanges:"none",
@@ -992,7 +1025,7 @@ R({ id:"provence-lavender", routeName:"Provence Lavender (Valensole & Sault)", s
   drawbacks:["Needs a hire car","Fields harvested from mid-July"],
   bestMonths:[7], acceptableMonths:[6], unsuitableMonths:[9,10,11,12,1,2,3],
   seasonalWindow:"Late Jun – mid Jul",
-  minimumDays:3, idealDays:4, maximumDays:6,
+  minimumDurationDays:3, idealDurationDays:4, maximumDurationDays:6,
   budgetMinGBP:450, budgetTypicalGBP:600, budgetMaxGBP:950,
   directFromManchester:"seasonal", ManchesterAccessScore:6, approximateManchesterToStartHours:6,
   drivingRequired:true, typicalTransferLevel:"low", hotelChanges:"low",
@@ -1010,7 +1043,7 @@ R({ id:"alsace-autumn", routeName:"Alsace Wine Route in Autumn", shortName:"Alsa
   highlights:["Riquewihr + Eguisheim storybook lanes","Harvest tastings","Crowds gone, colour arrived"],
   drawbacks:["Best done with a car (or pricey tours)","Basel/Strasbourg arrival + transfer"],
   bestMonths:[9,10], acceptableMonths:[5,6,12], unsuitableMonths:[1,2],
-  minimumDays:3, idealDays:4, maximumDays:6,
+  minimumDurationDays:3, idealDurationDays:4, maximumDurationDays:6,
   budgetMinGBP:400, budgetTypicalGBP:550, budgetMaxGBP:850,
   directFromManchester:"yes", ManchesterAccessScore:7, approximateManchesterToStartHours:5,
   drivingRequired:false, typicalTransferLevel:"medium", hotelChanges:"low",
@@ -1029,7 +1062,7 @@ R({ id:"venice-carnival", routeName:"Venice Carnival", shortName:"Venice Carniva
   drawbacks:["Carnival hotel prices spike","Bridges = constant small stair flights"],
   bestMonths:[2], acceptableMonths:[1], unsuitableMonths:[7,8],
   seasonalWindow:"~2 weeks before Shrove Tuesday (dates shift yearly)",
-  minimumDays:3, idealDays:4, maximumDays:5,
+  minimumDurationDays:3, idealDurationDays:4, maximumDurationDays:5,
   budgetMinGBP:450, budgetTypicalGBP:600, budgetMaxGBP:950,
   directFromManchester:"yes", ManchesterAccessScore:8, approximateManchesterToStartHours:4,
   typicalTransferLevel:"low", hotelChanges:"none",
@@ -1048,7 +1081,7 @@ R({ id:"alpine-ski", routeName:"Alpine Ski Week (Dolomites / Bansko / Innsbruck)
   highlights:["Bansko = cheapest learning curve","Sella Ronda ski-circuit of the Dolomites","Innsbruck works for non-skiers too"],
   drawbacks:["Gear, lessons and passes stack up","Real injury risk for beginners"],
   bestMonths:[1,2,3], acceptableMonths:[12,4], unsuitableMonths:[6,7,8,9],
-  minimumDays:4, idealDays:7, maximumDays:10,
+  minimumDurationDays:4, idealDurationDays:7, maximumDurationDays:10,
   budgetMinGBP:600, budgetTypicalGBP:950, budgetMaxGBP:2000,
   directFromManchester:"seasonal", ManchesterAccessScore:8, approximateManchesterToStartHours:5,
   typicalTransferLevel:"low", hotelChanges:"none",
@@ -1068,7 +1101,7 @@ R({ id:"budapest-spa", routeName:"Budapest Thermal Baths & Danube", shortName:"B
   highlights:["Széchenyi outdoor pools year-round","Night river cruise = seated sightseeing","Best value of the classic capitals"],
   drawbacks:["Summer afternoons get hot","Ruin-bar district noisy at night — book away from it"],
   bestMonths:[4,5,6,9,10], acceptableMonths:[3,11,12,1,2], unsuitableMonths:[],
-  minimumDays:3, idealDays:5, maximumDays:6,
+  minimumDurationDays:3, idealDurationDays:5, maximumDurationDays:6,
   budgetMinGBP:290, budgetTypicalGBP:380, budgetMaxGBP:600, budgetConfidence:"high",
   directFromManchester:"yes", ManchesterAccessScore:9, approximateManchesterToStartHours:4.5,
   typicalTransferLevel:"none", hotelChanges:"none",
@@ -1086,7 +1119,7 @@ R({ id:"krakow-break", routeName:"Kraków Old Town & Ojców", shortName:"Kraków
   highlights:["Flat old town = naturally capped walking","Pierogi at half UK prices","Ojców limestone valley for a nature half-day"],
   drawbacks:["Wieliczka salt mine = 380 steps down (skip with Mum)","April can still be cold"],
   bestMonths:[5,6,9], acceptableMonths:[4,10,12], unsuitableMonths:[1,2],
-  minimumDays:3, idealDays:4, maximumDays:6,
+  minimumDurationDays:3, idealDurationDays:4, maximumDurationDays:6,
   budgetMinGBP:220, budgetTypicalGBP:300, budgetMaxGBP:500, budgetConfidence:"high",
   directFromManchester:"yes", ManchesterAccessScore:9, approximateManchesterToStartHours:4,
   typicalTransferLevel:"none", hotelChanges:"none",
@@ -1104,7 +1137,7 @@ R({ id:"valencia-break", routeName:"Valencia: Old Town, Turia & Albufera", short
   highlights:["Turia: level green promenade with benches","Albufera sunset by boat (seated nature)","Real paella at the source"],
   drawbacks:["Culture density below Kraków/Vienna","Hot from late June"],
   bestMonths:[4,5,10], acceptableMonths:[3,6,9,11], unsuitableMonths:[7,8],
-  minimumDays:4, idealDays:5, maximumDays:7,
+  minimumDurationDays:4, idealDurationDays:5, maximumDurationDays:7,
   budgetMinGBP:280, budgetTypicalGBP:380, budgetMaxGBP:600, budgetConfidence:"high",
   directFromManchester:"yes", ManchesterAccessScore:8, approximateManchesterToStartHours:4.5,
   typicalTransferLevel:"none", hotelChanges:"none",
@@ -1122,7 +1155,7 @@ R({ id:"porto-douro", routeName:"Porto & Douro Day Trip", shortName:"Porto",
   highlights:["Port lodge tastings across the river","Douro valley by seated boat/train","Cheapest food scene in western Europe"],
   drawbacks:["Steep streets and staircases everywhere","Not the one for limited-mobility trips"],
   bestMonths:[4,5,6,9,10], acceptableMonths:[3,11], unsuitableMonths:[],
-  minimumDays:3, idealDays:4, maximumDays:6,
+  minimumDurationDays:3, idealDurationDays:4, maximumDurationDays:6,
   budgetMinGBP:240, budgetTypicalGBP:330, budgetMaxGBP:550, budgetConfidence:"high",
   directFromManchester:"yes", ManchesterAccessScore:9, approximateManchesterToStartHours:4,
   typicalTransferLevel:"none", hotelChanges:"none",
@@ -1141,7 +1174,7 @@ R({ id:"rome-ancient", routeName:"Rome, Colosseum & Pompeii", shortName:"Rome & 
   highlights:["Colosseum + Forum in one archaeological sweep","Pompeii day by high-speed rail","Naples pizza pilgrimage en route"],
   drawbacks:["Serious walking on uneven ancient surfaces","Queues without pre-booked slots"],
   bestMonths:[4,5,10], acceptableMonths:[3,11,9], unsuitableMonths:[7,8],
-  minimumDays:5, idealDays:7, maximumDays:9,
+  minimumDurationDays:5, idealDurationDays:7, maximumDurationDays:9,
   budgetMinGBP:500, budgetTypicalGBP:700, budgetMaxGBP:1100,
   directFromManchester:"yes", ManchesterAccessScore:8, approximateManchesterToStartHours:4.5,
   trainPossible:true, typicalTransferLevel:"low", hotelChanges:"low",
@@ -1160,7 +1193,7 @@ R({ id:"andalusia", routeName:"Andalusia: Seville, Granada & Córdoba", shortNam
   highlights:["The Alhambra (book 2–3 months out)","Mezquita's striped arches","Tapas-crawl culture"],
   drawbacks:["Alhambra tickets sell out fast","Brutal heat Jun–Aug"],
   bestMonths:[3,4,5,10], acceptableMonths:[2,11], unsuitableMonths:[6,7,8],
-  minimumDays:6, idealDays:7, maximumDays:10,
+  minimumDurationDays:6, idealDurationDays:7, maximumDurationDays:10,
   budgetMinGBP:500, budgetTypicalGBP:700, budgetMaxGBP:1100,
   directFromManchester:"yes", ManchesterAccessScore:7, approximateManchesterToStartHours:5,
   trainPossible:true, typicalTransferLevel:"medium", hotelChanges:"medium",
@@ -1178,7 +1211,7 @@ R({ id:"bologna-food", routeName:"Bologna & Emilia Food Pilgrimage", shortName:"
   highlights:["Hand-rolled tortellini class","Parmesan wheel cracking at a dairy","Porticoes shade every walk"],
   drawbacks:["It's genuinely all about food — thin on big sights","Summer is humid"],
   bestMonths:[4,5,9,10], acceptableMonths:[3,6,11], unsuitableMonths:[7,8],
-  minimumDays:3, idealDays:4, maximumDays:5,
+  minimumDurationDays:3, idealDurationDays:4, maximumDurationDays:5,
   budgetMinGBP:350, budgetTypicalGBP:480, budgetMaxGBP:750,
   directFromManchester:"seasonal", ManchesterAccessScore:7, approximateManchesterToStartHours:4.5,
   trainPossible:true, typicalTransferLevel:"low", hotelChanges:"none",
@@ -1196,7 +1229,7 @@ R({ id:"san-sebastian", routeName:"San Sebastián Pintxos & Basque Coast", short
   highlights:["Pintxos-bar crawl in Parte Vieja","La Concha: level seafront strolling","Michelin density if you splurge"],
   drawbacks:["Fly to Bilbao + 1h15 bus transfer","Food costs escalate happily"],
   bestMonths:[5,6,9], acceptableMonths:[4,10,7], unsuitableMonths:[1,2],
-  minimumDays:3, idealDays:4, maximumDays:6,
+  minimumDurationDays:3, idealDurationDays:4, maximumDurationDays:6,
   budgetMinGBP:450, budgetTypicalGBP:650, budgetMaxGBP:1100,
   directFromManchester:"seasonal", ManchesterAccessScore:6, approximateManchesterToStartHours:6,
   ferryPossible:true, typicalTransferLevel:"medium", hotelChanges:"none",
@@ -1215,7 +1248,7 @@ R({ id:"cappadocia-balloon", routeName:"Cappadocia Hot Air Balloon & Istanbul", 
   highlights:["The sunrise mass ascent","Cave-hotel stays","Hagia Sophia + Grand Bazaar add-on"],
   drawbacks:["Via Istanbul connection","Balloons cancel in wind — allow 2 mornings"],
   bestMonths:[4,5,9,10], acceptableMonths:[6,7,8], unsuitableMonths:[1,2],
-  minimumDays:5, idealDays:7, maximumDays:9,
+  minimumDurationDays:5, idealDurationDays:7, maximumDurationDays:9,
   budgetMinGBP:600, budgetTypicalGBP:850, budgetMaxGBP:1400,
   directFromManchester:"yes", ManchesterAccessScore:6, approximateManchesterToStartHours:8,
   typicalTransferLevel:"medium", hotelChanges:"medium",
@@ -1234,7 +1267,7 @@ R({ id:"farne-puffins", routeName:"Farne Islands Puffin Weekend", shortName:"Far
   drawbacks:["Landing trips are weather-dependent","Sailings book up in puffin season"],
   bestMonths:[5,6], acceptableMonths:[7,4], unsuitableMonths:[10,11,12,1,2],
   seasonalWindow:"Breeding season Apr – late Jul",
-  minimumDays:1, idealDays:2, maximumDays:3,
+  minimumDurationDays:1, idealDurationDays:2, maximumDurationDays:3,
   budgetMinGBP:120, budgetTypicalGBP:180, budgetMaxGBP:300, budgetConfidence:"high",
   directFromManchester:"not-applicable", ManchesterAccessScore:8, approximateManchesterToStartHours:3,
   flightRequired:false, drivingRequired:false, trainPossible:true, ferryPossible:true,
@@ -1253,7 +1286,7 @@ R({ id:"faroe-islands", routeName:"Faroe Islands Escape", shortName:"Faroe Islan
   highlights:["Múlafossur falling into the sea","Mykines puffin colonies","Sea-tunnel roundabout drives"],
   drawbacks:["Via Copenhagen/Edinburgh (verify routes)","Fog can erase a whole day"],
   bestMonths:[5,6,7,8], acceptableMonths:[4,9], unsuitableMonths:[11,12,1,2],
-  minimumDays:4, idealDays:5, maximumDays:8,
+  minimumDurationDays:4, idealDurationDays:5, maximumDurationDays:8,
   budgetMinGBP:700, budgetTypicalGBP:950, budgetMaxGBP:1500,
   directFromManchester:"no", ManchesterAccessScore:3, approximateManchesterToStartHours:9,
   drivingRequired:true, typicalTransferLevel:"high", hotelChanges:"low",
@@ -1273,7 +1306,7 @@ R({ id:"edinburgh-fringe", routeName:"Edinburgh Festival Fringe", shortName:"Edi
   drawbacks:["August accommodation triples in price","Old Town = hills and closes (steps)"],
   bestMonths:[8], acceptableMonths:[], unsuitableMonths:[1,2,3,10,11],
   seasonalWindow:"All of August",
-  minimumDays:2, idealDays:3, maximumDays:5,
+  minimumDurationDays:2, idealDurationDays:3, maximumDurationDays:5,
   budgetMinGBP:250, budgetTypicalGBP:400, budgetMaxGBP:700,
   directFromManchester:"not-applicable", ManchesterAccessScore:10, approximateManchesterToStartHours:3,
   flightRequired:false, trainPossible:true,
@@ -1293,7 +1326,7 @@ R({ id:"ljubljana-bled", routeName:"Ljubljana & Lake Bled", shortName:"Ljubljana
   highlights:["Bled island by seated pletna boat","Car-free riverside old town","Lakeshore path is flat (castle climb optional)"],
   drawbacks:["No reliable MAN direct — via Venice/Zagreb + 2–3h transfer","That transfer breaks minimal-transfer trips"],
   bestMonths:[5,6,9], acceptableMonths:[4,10,7,8], unsuitableMonths:[1,2],
-  minimumDays:4, idealDays:5, maximumDays:7,
+  minimumDurationDays:4, idealDurationDays:5, maximumDurationDays:7,
   budgetMinGBP:400, budgetTypicalGBP:550, budgetMaxGBP:850,
   directFromManchester:"no", ManchesterAccessScore:4, approximateManchesterToStartHours:8,
   typicalTransferLevel:"high", hotelChanges:"low",
@@ -1303,6 +1336,8 @@ R({ id:"ljubljana-bled", routeName:"Ljubljana & Lake Bled", shortName:"Ljubljana
   onceInALifetimeScore:6, revisitScore:7,
   tags:["spring","summer"], officialSources:[{label:"Visit Ljubljana",url:"https://www.visitljubljana.com"},{label:"Bled",url:"https://www.bled.si"}],
   liveVerificationNeeded:true, sourceSection:"Top100 #94 / eliminated in Trip Selector for transfers" }),
+
+...MANCHESTER_WEEKEND_ROUTES.map(R),
 ];
 
 /* ============================================================
@@ -1330,11 +1365,14 @@ const TL_LABEL = { none: "None", low: "Low", medium: "Medium", high: "High" };
 
 const DEFAULT_FILTERS = {
   month: 0, daysMin: 2, daysMax: 21, budgetMin: 100, budgetMax: 5000,
+  travelStyle: null,
   companion: "any", interests: [], tripTypes: [], env: [],
   noFlying: false, directMAN: false, northernDeparture: false, noDriving: false,
   noOvernight: false, maxOneTransfer: false, minHotelChanges: false, minLuggage: false,
   maxEffort: 5, maxWalking: 5, comfortPriority: 3, weatherTol: "any",
-  mumOnly: false, avoidStairs: false, onceOnly: false,
+  mumOnly: false, avoidStairs: false, onceOnly: false, manchesterWeekend: false,
+  wizardTimeChoice: null, wizardBudgetChoice: null,
+  wizardExperienceChoices: [], wizardImportantChoice: null,
 };
 
 /* ============================================================
@@ -1342,9 +1380,25 @@ const DEFAULT_FILTERS = {
    ============================================================ */
 function hardReasons(r, f) {
   const out = [];
+  if (f.travelStyle && !r.travelStyles.includes(f.travelStyle))
+    out.push(`Doesn't support ${f.travelStyle} travel style`);
+  if (f.manchesterWeekend) {
+    if (!r.isManchesterWeekendRoute) out.push("Not part of the researched Manchester weekend set");
+    if (r.minimumDurationDays > 3 || r.maximumDurationDays < 2) out.push("Cannot be completed within a 2–3 day weekend");
+    if (!["none", "low", "medium"].includes(r.typicalTransferLevel)) out.push("Travel complexity is above medium");
+    if (f.maxOneTransfer && (r.majorTransferCountToBase == null || r.majorTransferCountToBase > 1))
+      out.push("More than one major transfer from Manchester");
+    if (r.fridayEveningFeasible === false && r.saturdayMorningFeasible === false)
+      out.push("Neither Friday evening nor Saturday morning departure is feasible");
+    if (r.sundayEveningReturnFeasible === false) out.push("Sunday evening return is not feasible");
+    if (r.physicalEffort > f.maxEffort)
+      out.push(`Too physically demanding (effort ${r.physicalEffort}/5 vs your max ${f.maxEffort})`);
+    if (r.walkingLevel > f.maxWalking)
+      out.push(`Too much walking (level ${r.walkingLevel}/5 vs your max ${f.maxWalking})`);
+  }
   if (r.budgetMinGBP != null && f.budgetMax < r.budgetMinGBP)
     out.push(`Over budget — realistically from ~£${r.budgetMinGBP} pp`);
-  if (f.daysMax < r.minimumDays) out.push(`Needs at least ${r.minimumDays} days`);
+  if (f.daysMax < r.minimumDurationDays) out.push(`Needs at least ${r.minimumDurationDays} days`);
   if (f.month > 0 && r.unsuitableMonths.includes(f.month))
     out.push(`Not suitable in ${MONTHS[f.month - 1]}`);
   if (f.month > 0 && r.seasonalWindow && !r.bestMonths.includes(f.month) && !r.acceptableMonths.includes(f.month))
@@ -1356,7 +1410,7 @@ function hardReasons(r, f) {
   if ((f.mumOnly || (f.companion === "mum" && f.mumOnly)) && !r.suitableForMum)
     out.push("Not suited to travelling with Mum");
   if (f.avoidStairs && r.stairsRisk >= 4) out.push("Steep terrain / frequent stairs");
-  if (r.physicalEffort > f.maxEffort + 1)
+  if (!f.manchesterWeekend && r.physicalEffort > f.maxEffort + 1)
     out.push(`Too physically demanding (effort ${r.physicalEffort}/5 vs your max ${f.maxEffort})`);
   if (f.tripTypes.length && !r.tripTypes.some((t) => f.tripTypes.includes(t)))
     out.push("Trip type not selected");
@@ -1365,6 +1419,32 @@ function hardReasons(r, f) {
   if (f.onceOnly && r.onceInALifetimeScore < 8) out.push("Not a once-in-a-lifetime tier trip");
   if (f.companion === "solo" && !r.suitableForSolo) out.push("Not well suited to solo travel");
   return out;
+}
+
+function exclusionGroupFor(reason) {
+  if (reason.startsWith("Doesn't support")) return { key: "travel-style", label: "do not support this trip length", actionLabel: "Any duration" };
+  if (reason.startsWith("Over budget")) return { key: "budget", label: "over budget", actionLabel: "Raise budget" };
+  if (reason.startsWith("Needs at least")) return { key: "duration", label: "need more days", actionLabel: "Allow more days" };
+  if (reason.startsWith("Not suitable in") || reason.startsWith("Outside seasonal window"))
+    return { key: "month", label: "unsuitable for selected month", actionLabel: "Any month" };
+  if (reason.startsWith("Too physically demanding")) return { key: "effort", label: "exceed physical-effort limit", actionLabel: "Raise effort limit" };
+  if (reason.startsWith("Too much walking")) return { key: "walking", label: "exceed walking limit", actionLabel: "Raise walking limit" };
+  if (reason === "Driving required") return { key: "driving", label: "require driving", actionLabel: "Allow driving" };
+  if (reason.startsWith("Flight required")) return { key: "flying", label: "require flying", actionLabel: "Allow flying" };
+  if (reason === "Overnight travel is unavoidable") return { key: "overnight", label: "require overnight travel", actionLabel: "Allow overnight" };
+  if (reason === "Not suited to travelling with Mum") return { key: "mum", label: "are not Mum-friendly", actionLabel: "Include all" };
+  if (reason === "Steep terrain / frequent stairs") return { key: "stairs", label: "have steep terrain or stairs", actionLabel: "Allow stairs" };
+  if (reason === "Trip type not selected") return { key: "trip-type", label: "do not match selected trip type", actionLabel: "Any trip type" };
+  if (reason === "Doesn't match selected season / environment") return { key: "environment", label: "do not match selected environment", actionLabel: "Any environment" };
+  if (reason === "Not a once-in-a-lifetime tier trip") return { key: "once", label: "are below once-in-a-lifetime tier", actionLabel: "Include all tiers" };
+  if (reason === "Not well suited to solo travel") return { key: "solo", label: "are not suited to solo travel", actionLabel: "Any companion" };
+  if (reason === "More than one major transfer from Manchester") return { key: "transfers", label: "need more than one major transfer", actionLabel: "Allow transfers" };
+  if (reason === "Not part of the researched Manchester weekend set") return { key: "weekend-mode", label: "are outside the Manchester Weekend set", actionLabel: "Exit weekend mode" };
+  if (reason === "Cannot be completed within a 2–3 day weekend") return { key: "weekend-mode", label: "cannot fit a 2–3 day weekend", actionLabel: "Exit weekend mode" };
+  if (reason === "Travel complexity is above medium") return { key: "weekend-mode", label: "exceed weekend travel complexity", actionLabel: "Exit weekend mode" };
+  if (reason === "Neither Friday evening nor Saturday morning departure is feasible") return { key: "weekend-mode", label: "lack a feasible weekend departure", actionLabel: "Exit weekend mode" };
+  if (reason === "Sunday evening return is not feasible") return { key: "weekend-mode", label: "lack a Sunday-evening return", actionLabel: "Exit weekend mode" };
+  return { key: reason, label: reason.toLowerCase(), actionLabel: "Reset filters" };
 }
 
 /* ============================================================
@@ -1389,8 +1469,8 @@ function subScores(r, f) {
   else budget = 0.45; // typical above max but minimum within (else hard-excluded)
   // Duration
   let duration;
-  if (r.idealDays >= f.daysMin && r.idealDays <= f.daysMax) duration = 1;
-  else if (r.minimumDays <= f.daysMax && r.maximumDays >= f.daysMin) duration = 0.65;
+  if (r.idealDurationDays >= f.daysMin && r.idealDurationDays <= f.daysMax) duration = 1;
+  else if (r.minimumDurationDays <= f.daysMax && r.maximumDurationDays >= f.daysMin) duration = 0.65;
   else duration = 0.4;
   // Companion
   const compMap = {
@@ -1470,7 +1550,7 @@ function scoreRoute(r, f) {
 const REASON_TEXT = {
   month: (r, f) => f.month ? `${MONTHS[f.month - 1]} is prime season for this route` : "Works across many months",
   budget: (r) => `Typical cost ~£${r.budgetTypicalGBP ?? r.budgetMinGBP} pp sits inside your budget`,
-  duration: (r) => `Ideal length (${r.idealDays} days) fits your window`,
+  duration: (r) => `Ideal length (${r.idealDurationDays} days) fits your window`,
   companion: (r, f) => f.companion === "mum" ? "Genuinely comfortable with Mum — low strain, low stairs" : "Well matched to your travel party",
   interests: () => "Strong overlap with the experiences you picked",
   logistics: () => "Clean logistics for your transport preferences",
@@ -1493,6 +1573,7 @@ function topDrawbacks(r, parts) {
    ============================================================ */
 const PRESETS = [
   { id: "mum", label: "Best trip with Mum", f: { companion: "mum", mumOnly: true, maxEffort: 2, maxWalking: 3, comfortPriority: 5, maxOneTransfer: true, minLuggage: true, minHotelChanges: true }, sort: "match" },
+  { id: "man-weekend", label: "Manchester weekend", f: { manchesterWeekend: true, travelStyle: "weekend", daysMin: 2, daysMax: 3, directMAN: true, noFlying: true, noOvernight: true, maxOneTransfer: true, minHotelChanges: true }, sort: "weekend" },
   { id: "weekend", label: "Cheap long weekend", f: { daysMin: 2, daysMax: 4, budgetMax: 350 }, sort: "budget" },
   { id: "u500", label: "Under £500", f: { budgetMax: 500 }, sort: "match" },
   { id: "nofly", label: "No-fly from the UK", f: { noFlying: true }, sort: "match" },
@@ -1508,19 +1589,127 @@ const PRESETS = [
   { id: "manf", label: "Manchester-friendly", f: { directMAN: true }, sort: "manchester" },
 ];
 
+const WIZARD_TIME_OPTIONS = [
+  { id: "day", label: "Day trip", daysMin: 1, daysMax: 1, travelStyle: "day-trip" },
+  { id: "weekend", label: "Weekend, 2–3 days", summary: "Weekend", daysMin: 2, daysMax: 3, travelStyle: "weekend" },
+  { id: "short", label: "Short break, 4–5 days", summary: "Short break", daysMin: 4, daysMax: 5, travelStyle: "short-break" },
+  { id: "week", label: "One week, 6–8 days", summary: "One week", daysMin: 6, daysMax: 8, travelStyle: "one-week" },
+  { id: "longer", label: "Longer trip, 9–14 days", summary: "Longer trip", daysMin: 9, daysMax: 14, travelStyle: "longer-trip" },
+  { id: "flexible", label: "I am flexible", summary: "Flexible timing", daysMin: 2, daysMax: 21, travelStyle: null },
+];
+const WIZARD_COMPANION_OPTIONS = [
+  { id: "solo", label: "Solo", companion: "solo" },
+  { id: "mum", label: "Mum / older traveller", summary: "Mum-friendly", companion: "mum" },
+  { id: "partner", label: "Partner", companion: "couple" },
+  { id: "friends", label: "Friends", companion: "friends" },
+  { id: "family", label: "Family", companion: "family" },
+  { id: "undecided", label: "Not decided", companion: "any" },
+];
+const WIZARD_BUDGET_OPTIONS = [
+  { id: "u250", label: "Under £250", budgetMin: 100, budgetMax: 250 },
+  { id: "250-500", label: "£250–£500", summary: "Under £500", budgetMin: 250, budgetMax: 500 },
+  { id: "500-800", label: "£500–£800", budgetMin: 500, budgetMax: 800 },
+  { id: "800-1200", label: "£800–£1,200", budgetMin: 800, budgetMax: 1200 },
+  { id: "1200plus", label: "£1,200+", budgetMin: 1200, budgetMax: 5000 },
+  { id: "flexible", label: "Flexible", summary: "Flexible budget", budgetMin: 100, budgetMax: 5000 },
+];
+const WIZARD_EXPERIENCE_OPTIONS = [
+  { id: "relax", label: "Relaxing escape", interests: ["relaxation"] },
+  { id: "nature", label: "Nature and scenery", interests: ["nature", "scenery"] },
+  { id: "culture", label: "History and culture", interests: ["history", "culture"] },
+  { id: "food", label: "Food", interests: ["food"] },
+  { id: "train", label: "Scenic train", interests: ["uniqueTransport"], tripTypes: ["Scenic Railway", "Sleeper Train", "Luxury Train", "Interrail"] },
+  { id: "cruise", label: "Cruise or ferry", tripTypes: ["Ocean Cruise", "Mini Cruise", "Expedition Cruise", "Ferry"] },
+  { id: "coast", label: "Coast and islands", interests: ["scenery", "relaxation"], tripTypes: ["Beach", "Island Hopping"] },
+  { id: "mountains", label: "Mountains", interests: ["nature", "scenery"], tripTypes: ["Hiking", "Alpine Route"] },
+  { id: "seasonal", label: "Seasonal atmosphere", interests: ["seasonal"] },
+  { id: "photography", label: "Photography", interests: ["photography"] },
+  { id: "adventure", label: "Adventure", interests: ["adventure"] },
+  { id: "surprise", label: "Surprise me", description: "Keep the choice broad and let the existing match score lead." },
+];
+const WIZARD_IMPORTANT_OPTIONS = [
+  { id: "nofly", label: "No flying" }, { id: "nodrive", label: "No driving" },
+  { id: "transfers", label: "Minimal transfers" }, { id: "loweffort", label: "Low physical effort" },
+  { id: "manweekend", label: "Manchester weekend" }, { id: "direct", label: "Direct from Manchester preferred" },
+  { id: "noovernight", label: "No overnight travel" }, { id: "none", label: "No preference" },
+];
+
+const wizardTimeChoice = (f) => WIZARD_TIME_OPTIONS.find((o) => o.id === f.wizardTimeChoice) ??
+  WIZARD_TIME_OPTIONS.find((o) => o.daysMin === f.daysMin && o.daysMax === f.daysMax) ?? null;
+const wizardBudgetChoice = (f) => WIZARD_BUDGET_OPTIONS.find((o) => o.id === f.wizardBudgetChoice) ??
+  WIZARD_BUDGET_OPTIONS.find((o) => o.budgetMin === f.budgetMin && o.budgetMax === f.budgetMax) ?? null;
+const wizardCompanionChoice = (f) => WIZARD_COMPANION_OPTIONS.find((o) => o.companion === f.companion) ?? WIZARD_COMPANION_OPTIONS.at(-1);
+const wizardImportantChoice = (f) => {
+  if (f.wizardImportantChoice) return f.wizardImportantChoice;
+  if (f.manchesterWeekend) return "manweekend";
+  if (f.noFlying) return "nofly"; if (f.noDriving) return "nodrive";
+  if (f.noOvernight) return "noovernight"; if (f.directMAN) return "direct";
+  if (f.maxEffort <= 2) return "loweffort"; if (f.maxOneTransfer) return "transfers";
+  return "none";
+};
+const inferredWizardExperiences = (f) => {
+  if (f.wizardExperienceChoices?.length) return f.wizardExperienceChoices;
+  return WIZARD_EXPERIENCE_OPTIONS.filter((o) => o.id !== "surprise" &&
+    (o.interests?.length || o.tripTypes?.length) &&
+    (o.interests ?? []).every((x) => f.interests.includes(x)) &&
+    (o.tripTypes ?? []).every((x) => f.tripTypes.includes(x))).map((o) => o.id).slice(0, 3);
+};
+
+function filtersForExperiences(f, ids) {
+  const picked = ids.includes("surprise") ? [] : WIZARD_EXPERIENCE_OPTIONS.filter((o) => ids.includes(o.id));
+  return {
+    ...f, wizardExperienceChoices: ids,
+    interests: [...new Set(picked.flatMap((o) => o.interests ?? []))],
+    tripTypes: [...new Set(picked.flatMap((o) => o.tripTypes ?? []))].filter((t) => TYPE_OPTIONS.includes(t)),
+  };
+}
+
+function filtersForCompanion(f, id) {
+  const choice = WIZARD_COMPANION_OPTIONS.find((o) => o.id === id);
+  const mum = choice?.companion === "mum";
+  return {
+    ...f, companion: choice?.companion ?? "any", mumOnly: mum,
+    maxEffort: mum ? 3 : 5, maxWalking: mum ? 3 : 5, comfortPriority: mum ? 5 : 3,
+    maxOneTransfer: mum, minHotelChanges: mum, minLuggage: mum,
+  };
+}
+
+function filtersForImportantChoice(f, id) {
+  const mum = f.companion === "mum";
+  const next = {
+    ...f, wizardImportantChoice: id, noFlying: false, noDriving: false, noOvernight: false,
+    directMAN: false, manchesterWeekend: false, maxOneTransfer: mum,
+    maxEffort: mum ? 3 : 5, maxWalking: mum ? 3 : 5,
+    minHotelChanges: mum, minLuggage: mum,
+  };
+  if (id === "nofly") next.noFlying = true;
+  if (id === "nodrive") next.noDriving = true;
+  if (id === "noovernight") next.noOvernight = true;
+  if (id === "direct") next.directMAN = true;
+  if (id === "transfers") next.maxOneTransfer = true;
+  if (id === "loweffort") { next.maxEffort = 2; next.maxWalking = 2; }
+  if (id === "manweekend") Object.assign(next, { manchesterWeekend: true, travelStyle: "weekend", daysMin: 2, daysMax: 3, wizardTimeChoice: "weekend", directMAN: true, noFlying: true, noOvernight: true, maxOneTransfer: true, minHotelChanges: true });
+  return next;
+}
+
 /* ============================================================
    SORTS
    ============================================================ */
 const SORTS = [
-  ["match", "Best match"], ["budget", "Lowest estimated budget"], ["duration", "Shortest ideal duration"],
+  ["match", "Best match"], ["weekend", "Weekend suitability"], ["budget", "Lowest estimated budget"], ["duration", "Shortest ideal duration"],
   ["manchester", "Best from Manchester"], ["mum", "Best for Mum"], ["effort", "Lowest physical effort"],
   ["transfers", "Fewest transfers"], ["scenery", "Best scenery"], ["food", "Best food"],
   ["relax", "Most relaxing"], ["value", "Best value"], ["unique", "Most unique"], ["revisit", "Highest revisit value"],
 ];
 function sortFn(key) {
   switch (key) {
+    case "weekend": return (a, b) =>
+      (b.r.weekendSuitability ?? -1) - (a.r.weekendSuitability ?? -1) ||
+      (a.r.manchesterJourneyTime?.maxHours ?? 99) - (b.r.manchesterJourneyTime?.maxHours ?? 99) ||
+      (a.r.majorTransferCountToBase ?? 99) - (b.r.majorTransferCountToBase ?? 99) ||
+      b.score.total - a.score.total;
     case "budget": return (a, b) => (a.r.budgetTypicalGBP ?? 99999) - (b.r.budgetTypicalGBP ?? 99999);
-    case "duration": return (a, b) => a.r.idealDays - b.r.idealDays;
+    case "duration": return (a, b) => a.r.idealDurationDays - b.r.idealDurationDays;
     case "manchester": return (a, b) => b.r.ManchesterAccessScore - a.r.ManchesterAccessScore;
     case "mum": return (a, b) => ((b.r.suitableForMum ? 50 : 0) + b.r.comfortLevel * 5 - b.r.physicalEffort * 4 - b.r.stairsRisk * 3) - ((a.r.suitableForMum ? 50 : 0) + a.r.comfortLevel * 5 - a.r.physicalEffort * 4 - a.r.stairsRisk * 3);
     case "effort": return (a, b) => a.r.physicalEffort - b.r.physicalEffort || a.r.walkingLevel - b.r.walkingLevel;
@@ -1604,6 +1793,59 @@ const Badge = ({ children, tone = "moss", title }) => (
   }}>{children}</span>
 );
 
+const hasDefiniteWeekendOutbound = (r) =>
+  r.fridayEveningFeasible === true || r.saturdayMorningFeasible === true;
+const isWeekendFriendly = (r) =>
+  r.isManchesterWeekendRoute &&
+  r.minimumDurationDays <= 3 && r.maximumDurationDays >= 2 &&
+  ["none", "low", "medium"].includes(r.typicalTransferLevel) &&
+  r.majorTransferCountToBase <= 1 &&
+  hasDefiniteWeekendOutbound(r) &&
+  r.sundayEveningReturnFeasible === true;
+const hasUncertainWeekendTiming = (r) =>
+  r.isManchesterWeekendRoute && [
+    r.fridayEveningFeasible,
+    r.saturdayMorningFeasible,
+    r.sundayEveningReturnFeasible,
+  ].includes("uncertain");
+const timingLabel = (value) => value === true ? "Yes" : value === false ? "No" : "Uncertain — verify live";
+
+const CATEGORY_GRADIENTS = {
+  Air: "linear-gradient(135deg, #C9DCE5 0%, #EEF2EE 52%, #D9C9B0 100%)",
+  City: "linear-gradient(135deg, #DDD3C4 0%, #EEE9DF 45%, #AEBAC0 100%)",
+  Food: "linear-gradient(135deg, #E6D2B5 0%, #F2E9D8 48%, #B66C57 100%)",
+  Land: "linear-gradient(135deg, #B7C7B0 0%, #E8E5D5 50%, #8FA1A7 100%)",
+  Sea: "linear-gradient(135deg, #9FBCC8 0%, #DCE8E7 48%, #647F8A 100%)",
+  Seasonal: "linear-gradient(135deg, #D8C9D2 0%, #F1E8DD 50%, #A58B78 100%)",
+  Wellness: "linear-gradient(135deg, #B8CCC1 0%, #EDF0E7 50%, #B9A58D 100%)",
+};
+
+function RouteVisual({ route, detail = false }) {
+  const visualStyle = {
+    position: "relative", width: "100%", aspectRatio: "16 / 9", overflow: "hidden",
+    borderRadius: detail ? 8 : 6, flexShrink: 0,
+    background: CATEGORY_GRADIENTS[route.parentCategory] ?? CATEGORY_GRADIENTS.Land,
+  };
+  if (!route.imageUrl) {
+    return (
+      <div role="img" aria-label={`${route.routeName} — ${route.parentCategory.toLowerCase()} route placeholder`} style={{ ...visualStyle, display: "flex", alignItems: "flex-end", padding: 12, boxSizing: "border-box" }}>
+        <span style={{ fontFamily: T.serif, fontSize: detail ? 15 : 12, color: `${T.ink}B8`, letterSpacing: 0.3 }}>{route.parentCategory} route</span>
+      </div>
+    );
+  }
+  return (
+    <figure style={{ ...visualStyle, margin: 0 }}>
+      <img src={route.imageUrl} alt={route.imageAlt || `${route.routeName} route image`} loading="lazy" decoding="async" width="1600" height="900"
+        style={{ display: "block", width: "100%", height: "100%", objectFit: "cover" }} />
+      {route.imageCredit && (
+        <figcaption style={{ position: "absolute", right: 7, bottom: 6, fontFamily: T.sans, fontSize: 9, color: "#fff", background: "rgba(30,39,51,0.68)", padding: "2px 5px", borderRadius: 3 }}>
+          {route.imageCredit}
+        </figcaption>
+      )}
+    </figure>
+  );
+}
+
 const Toggle = ({ label, value, onChange, note }) => (
   <label style={{ display: "flex", alignItems: "center", gap: 8, fontFamily: T.sans, fontSize: 13, color: T.ink, cursor: "pointer", padding: "3px 0" }}>
     <input type="checkbox" checked={value} onChange={(e) => onChange(e.target.checked)} style={{ accentColor: T.moss }} />
@@ -1635,6 +1877,10 @@ const RangeRow = ({ label, min, max, value, onChange, unit = "", step = 1 }) => 
   </div>
 );
 
+const FilterSubhead = ({ children }) => (
+  <div style={{ fontFamily: T.sans, fontSize: 10, letterSpacing: 0.8, textTransform: "uppercase", color: T.muted, margin: "10px 0 5px" }}>{children}</div>
+);
+
 /* ============================================================
    FILTER PANEL
    ============================================================ */
@@ -1649,77 +1895,84 @@ function FilterPanel({ f, set, onClear }) {
           <RotateCcw size={11} /> Clear all
         </button>
       </div>
+      <div style={{ fontFamily: T.sans, fontSize: 10.5, lineHeight: 1.4, color: T.muted, background: T.paper, borderRadius: 5, padding: "7px 8px", marginTop: 8 }}>
+        Must-have conditions remove unsuitable trips. Preferences only affect ranking.
+      </div>
 
-      <Section title="Month">
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-          <Chip active={f.month === 0} onClick={() => tog("month", 0)}>Any</Chip>
-          {MONTHS.map((m, i) => (
-            <Chip key={m} active={f.month === i + 1} onClick={() => tog("month", i + 1)}>{m}</Chip>
-          ))}
-        </div>
-      </Section>
-
-      <Section title="Days & budget">
-        <RangeRow label="Min days" min={2} max={21} value={f.daysMin} onChange={(v) => set({ ...f, daysMin: Math.min(v, f.daysMax) })} />
-        <RangeRow label="Max days" min={2} max={21} value={f.daysMax} onChange={(v) => set({ ...f, daysMax: Math.max(v, f.daysMin) })} />
-        <RangeRow label="Budget per person (max)" min={100} max={5000} step={50} unit="£" value={f.budgetMax} onChange={(v) => set({ ...f, budgetMax: Math.max(v, f.budgetMin) })} />
-        <RangeRow label="Budget per person (min)" min={100} max={5000} step={50} unit="£" value={f.budgetMin} onChange={(v) => set({ ...f, budgetMin: Math.min(v, f.budgetMax) })} />
-        <div style={{ fontFamily: T.sans, fontSize: 10, color: T.muted }}>All budgets are per-person estimates, twin-share where stated.</div>
-      </Section>
-
-      <Section title="Who's going">
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-          {COMPANIONS.map(([k, l]) => <Chip key={k} active={f.companion === k} onClick={() => tog("companion", k)}>{l}</Chip>)}
-        </div>
-        {f.companion === "mum" && (
-          <div style={{ marginTop: 6 }}>
-            <Toggle label="Mum-friendly routes only" value={f.mumOnly} onChange={(v) => tog("mumOnly", v)} note="hard filter" />
-            <div style={{ fontFamily: T.sans, fontSize: 10, color: T.moss }}>Mum mode active: comfort, transfers and luggage now carry extra weight in scoring.</div>
+      <Section title="Must have">
+        <div style={{ background: T.carmineSoft, borderRadius: 6, padding: "2px 9px 9px" }}>
+          <FilterSubhead>Month</FilterSubhead>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            <Chip active={f.month === 0} onClick={() => tog("month", 0)}>Any</Chip>
+            {MONTHS.map((m, i) => <Chip key={m} active={f.month === i + 1} onClick={() => tog("month", i + 1)}>{m}</Chip>)}
           </div>
-        )}
-      </Section>
 
-      <Section title="Experiences you want">
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-          {INTERESTS.map(([k, l]) => <Chip key={k} active={f.interests.includes(k)} onClick={() => togArr("interests", k)}>{l}</Chip>)}
+          <FilterSubhead>Limits</FilterSubhead>
+          <RangeRow label="Maximum days" min={1} max={21} value={f.daysMax} onChange={(v) => set({ ...f, daysMax: Math.max(v, f.daysMin) })} />
+          <RangeRow label="Maximum budget per person" min={100} max={5000} step={50} unit="£" value={f.budgetMax} onChange={(v) => set({ ...f, budgetMax: Math.max(v, f.budgetMin) })} />
+
+          <FilterSubhead>Who's going</FilterSubhead>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            {COMPANIONS.map(([k, l]) => <Chip key={k} active={f.companion === k} onClick={() => tog("companion", k)}>{l}</Chip>)}
+          </div>
+          {f.companion === "mum" && (
+            <div style={{ marginTop: 6 }}>
+              <Toggle label="Mum-friendly routes only" value={f.mumOnly} onChange={(v) => tog("mumOnly", v)} />
+              <div style={{ fontFamily: T.sans, fontSize: 10, color: T.moss }}>Mum mode also gives comfort, transfers and luggage extra weight in ranking.</div>
+            </div>
+          )}
+
+          <FilterSubhead>Trip fit</FilterSubhead>
+          <div style={{ fontFamily: T.sans, fontSize: 10.5, color: T.muted, marginBottom: 4 }}>Trip type</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            {TYPE_OPTIONS.map((t) => <Chip key={t} active={f.tripTypes.includes(t)} onClick={() => togArr("tripTypes", t)}>{t}</Chip>)}
+          </div>
+          <div style={{ fontFamily: T.sans, fontSize: 10.5, color: T.muted, margin: "7px 0 4px" }}>Season & environment</div>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            {ENV_OPTIONS.map(([k, l]) => <Chip key={k} active={f.env.includes(k)} onClick={() => togArr("env", k)}>{l}</Chip>)}
+          </div>
+
+          <FilterSubhead>Transport</FilterSubhead>
+          <Toggle label="No flying" value={f.noFlying} onChange={(v) => tog("noFlying", v)} />
+          <Toggle label="No driving" value={f.noDriving} onChange={(v) => tog("noDriving", v)} />
+          <Toggle label="No overnight travel" value={f.noOvernight} onChange={(v) => tog("noOvernight", v)} />
+          {f.manchesterWeekend && <Toggle label="Max one major transfer" value={f.maxOneTransfer} onChange={(v) => tog("maxOneTransfer", v)} />}
+
+          <FilterSubhead>Accessibility</FilterSubhead>
+          <RangeRow label="Max physical effort (1–5)" min={1} max={5} value={f.maxEffort} onChange={(v) => tog("maxEffort", v)} />
+          {f.manchesterWeekend && <RangeRow label="Max walking level (1–5)" min={1} max={5} value={f.maxWalking} onChange={(v) => tog("maxWalking", v)} />}
+          <Toggle label="Avoid steep terrain / frequent stairs" value={f.avoidStairs} onChange={(v) => tog("avoidStairs", v)} />
         </div>
       </Section>
 
-      <Section title="Trip type" defaultOpen={false}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-          {TYPE_OPTIONS.map((t) => <Chip key={t} active={f.tripTypes.includes(t)} onClick={() => togArr("tripTypes", t)}>{t}</Chip>)}
-        </div>
-      </Section>
+      <Section title="Nice to have" defaultOpen={false}>
+        <div style={{ background: T.mossSoft, borderRadius: 6, padding: "2px 9px 9px" }}>
+          <FilterSubhead>Timing & budget preferences</FilterSubhead>
+          <RangeRow label="Preferred minimum days" min={1} max={21} value={f.daysMin} onChange={(v) => set({ ...f, daysMin: Math.min(v, f.daysMax) })} />
+          <RangeRow label="Preferred minimum budget" min={100} max={5000} step={50} unit="£" value={f.budgetMin} onChange={(v) => set({ ...f, budgetMin: Math.min(v, f.budgetMax) })} />
+          <div style={{ fontFamily: T.sans, fontSize: 10, color: T.muted }}>Budgets are per-person estimates, twin-share where stated.</div>
 
-      <Section title="Season & environment" defaultOpen={false}>
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
-          {ENV_OPTIONS.map(([k, l]) => <Chip key={k} active={f.env.includes(k)} onClick={() => togArr("env", k)}>{l}</Chip>)}
-        </div>
-      </Section>
+          <FilterSubhead>Experiences</FilterSubhead>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+            {INTERESTS.map(([k, l]) => <Chip key={k} active={f.interests.includes(k)} onClick={() => togArr("interests", k)}>{l}</Chip>)}
+          </div>
 
-      <Section title="Transport & logistics" defaultOpen={false}>
-        <Toggle label="No flying" value={f.noFlying} onChange={(v) => tog("noFlying", v)} note="hard filter" />
-        <Toggle label="No driving" value={f.noDriving} onChange={(v) => tog("noDriving", v)} note="hard filter" />
-        <Toggle label="No overnight travel" value={f.noOvernight} onChange={(v) => tog("noOvernight", v)} note="hard filter" />
-        <Toggle label="Direct from Manchester preferred" value={f.directMAN} onChange={(v) => tog("directMAN", v)} note="soft" />
-        <Toggle label="Depart from northern England" value={f.northernDeparture} onChange={(v) => tog("northernDeparture", v)} note="soft" />
-        <Toggle label="Max one major transfer" value={f.maxOneTransfer} onChange={(v) => tog("maxOneTransfer", v)} note="soft" />
-        <Toggle label="Minimise hotel changes" value={f.minHotelChanges} onChange={(v) => tog("minHotelChanges", v)} note="soft" />
-        <Toggle label="Minimise luggage handling" value={f.minLuggage} onChange={(v) => tog("minLuggage", v)} note="soft" />
-        <div style={{ fontFamily: T.sans, fontSize: 10, color: T.muted, marginTop: 4 }}>
-          Departure-time preferences (early flights, late arrivals) depend on live schedules — check when booking; not scored here.
-        </div>
-      </Section>
+          <FilterSubhead>Transport preferences</FilterSubhead>
+          <Toggle label="Direct from Manchester preferred" value={f.directMAN} onChange={(v) => tog("directMAN", v)} />
+          <Toggle label="Depart from northern England" value={f.northernDeparture} onChange={(v) => tog("northernDeparture", v)} />
+          {!f.manchesterWeekend && <Toggle label="Max one major transfer" value={f.maxOneTransfer} onChange={(v) => tog("maxOneTransfer", v)} />}
+          <Toggle label="Minimise hotel changes" value={f.minHotelChanges} onChange={(v) => tog("minHotelChanges", v)} />
+          <Toggle label="Minimise luggage handling" value={f.minLuggage} onChange={(v) => tog("minLuggage", v)} />
+          <div style={{ fontFamily: T.sans, fontSize: 10, color: T.muted, marginTop: 4 }}>Departure-time preferences depend on live schedules and are not scored here.</div>
 
-      <Section title="Comfort & accessibility" defaultOpen={false}>
-        <RangeRow label="Max physical effort (1–5)" min={1} max={5} value={f.maxEffort} onChange={(v) => tog("maxEffort", v)} />
-        <RangeRow label="Max walking level (1–5)" min={1} max={5} value={f.maxWalking} onChange={(v) => tog("maxWalking", v)} />
-        <RangeRow label="Comfort priority (1–5)" min={1} max={5} value={f.comfortPriority} onChange={(v) => tog("comfortPriority", v)} />
-        <Toggle label="Avoid steep terrain / frequent stairs" value={f.avoidStairs} onChange={(v) => tog("avoidStairs", v)} note="hard filter" />
-        <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
-          {[["any", "Any weather"], ["mild", "Mild preferred"], ["cold", "Cold is fine"], ["heat", "Heat is fine"]].map(([k, l]) => (
-            <Chip key={k} active={f.weatherTol === k} onClick={() => tog("weatherTol", k)}>{l}</Chip>
-          ))}
+          <FilterSubhead>Comfort preferences</FilterSubhead>
+          {!f.manchesterWeekend && <RangeRow label="Preferred max walking level (1–5)" min={1} max={5} value={f.maxWalking} onChange={(v) => tog("maxWalking", v)} />}
+          <RangeRow label="Comfort priority (1–5)" min={1} max={5} value={f.comfortPriority} onChange={(v) => tog("comfortPriority", v)} />
+          <div style={{ display: "flex", flexWrap: "wrap", gap: 4, marginTop: 6 }}>
+            {[["any", "Any weather"], ["mild", "Mild preferred"], ["cold", "Cold is fine"], ["heat", "Heat is fine"]].map(([k, l]) => (
+              <Chip key={k} active={f.weatherTol === k} onClick={() => tog("weatherTol", k)}>{l}</Chip>
+            ))}
+          </div>
         </div>
       </Section>
     </div>
@@ -1733,6 +1986,7 @@ function RouteCard({ item, fav, hidden, inCompare, onFav, onHide, onCompare, onO
   const { r, score, reasons, draws } = item;
   return (
     <div style={{ background: T.panel, border: `1px solid ${T.line}`, borderRadius: 8, padding: 16, display: "flex", flexDirection: "column", gap: 8 }}>
+      <RouteVisual route={r} />
       <div style={{ display: "flex", gap: 10, alignItems: "flex-start" }}>
         <div style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontFamily: T.sans, fontSize: 10, letterSpacing: 1, textTransform: "uppercase", color: T.muted }}>
@@ -1747,6 +2001,8 @@ function RouteCard({ item, fav, hidden, inCompare, onFav, onHide, onCompare, onO
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
         {r.tripTypes.slice(0, 3).map((t) => <span key={t} style={{ fontFamily: T.sans, fontSize: 10, border: `1px solid ${T.lineSoft}`, borderRadius: 3, padding: "1px 6px", color: T.muted }}>{t}</span>)}
+        {isWeekendFriendly(r) && <Badge title="Fits a 2–3 day weekend, has at most one major transfer, a definite outward option and a definite Sunday-evening return">Weekend-friendly</Badge>}
+        {hasUncertainWeekendTiming(r) && <Badge tone="gold" title="At least one weekend timing estimate needs a current timetable check">Weekend timing uncertain</Badge>}
         {r.suitableForMum && <Badge>Mum-friendly</Badge>}
         {r.liveVerificationNeeded && <Badge tone="carmine" title="Schedules, fares and seasonal services change — verify before booking">Needs live verification</Badge>}
         {r.estimated && <Badge tone="gold" title={r.budgetBasis}>Estimates</Badge>}
@@ -1754,9 +2010,9 @@ function RouteCard({ item, fav, hidden, inCompare, onFav, onHide, onCompare, onO
 
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "4px 12px", fontFamily: T.sans, fontSize: 12, color: T.ink }}>
         <div><span style={{ color: T.muted }}>Best: </span>{monthsLabel(r.bestMonths)}</div>
-        <div><span style={{ color: T.muted }}>Ideal: </span>{r.idealDays} days</div>
+        <div><span style={{ color: T.muted }}>Ideal: </span>{r.idealDurationDays} days</div>
         <div><span style={{ color: T.muted }}>Budget: </span>~{fmtGBP(r.budgetTypicalGBP)} pp</div>
-        <div><span style={{ color: T.muted }}>MAN access: </span>{r.ManchesterAccessScore}/10</div>
+        <div><span style={{ color: T.muted }}>{r.manchesterJourneyTime ? "From MAN: " : "MAN access: "}</span>{r.manchesterJourneyTime?.label ?? `${r.ManchesterAccessScore}/10`}</div>
         <div><span style={{ color: T.muted }}>Effort: </span><Dots n={r.physicalEffort} /></div>
         <div><span style={{ color: T.muted }}>Transfers: </span>{TL_LABEL[r.typicalTransferLevel]}</div>
       </div>
@@ -1808,6 +2064,8 @@ function DetailModal({ item, onClose, mumMode }) {
             <div style={{ fontFamily: T.sans, fontSize: 10, letterSpacing: 1, textTransform: "uppercase", color: T.muted }}>{r.parentCategory} · {r.sourceSection}</div>
             <h2 style={{ fontFamily: T.serif, fontSize: 24, margin: "2px 0 4px", color: T.ink, lineHeight: 1.2 }}>{r.routeName}</h2>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+              {isWeekendFriendly(r) && <Badge title="Based on observable weekend timing and logistics, not the suitability score">Weekend-friendly</Badge>}
+              {hasUncertainWeekendTiming(r) && <Badge tone="gold">Weekend timing uncertain</Badge>}
               {r.suitableForMum && <Badge>Mum-friendly</Badge>}
               {r.liveVerificationNeeded && <Badge tone="carmine">Needs live verification</Badge>}
               {r.estimated && <Badge tone="gold">Budget is an estimate</Badge>}
@@ -1815,6 +2073,8 @@ function DetailModal({ item, onClose, mumMode }) {
           </div>
           <Stamp score={score.total} />
         </div>
+
+        {r.imageUrl && <div style={{ marginTop: 14 }}><RouteVisual route={r} detail /></div>}
 
         <p style={{ fontFamily: T.serif, fontSize: 14.5, lineHeight: 1.55, color: T.ink }}>{r.description}</p>
 
@@ -1825,7 +2085,8 @@ function DetailModal({ item, onClose, mumMode }) {
             {row("Best months", monthsLabel(r.bestMonths))}
             {r.acceptableMonths.length > 0 && row("Also possible", monthsLabel(r.acceptableMonths))}
             {r.seasonalWindow && row("Seasonal window", r.seasonalWindow)}
-            {row("Days (min / ideal / max)", `${r.minimumDays} / ${r.idealDays} / ${r.maximumDays}`)}
+            {row("Days (min / ideal / max)", `${r.minimumDurationDays} / ${r.idealDurationDays} / ${r.maximumDurationDays}`)}
+            {row("Travel styles", r.travelStyles.join(", "))}
             {row("Budget range pp", `${fmtGBP(r.budgetMinGBP)} – ${fmtGBP(r.budgetMaxGBP)} (typ. ${fmtGBP(r.budgetTypicalGBP)})`)}
             {row("Budget basis", r.budgetBasis)}
             {row("Budget confidence", r.budgetConfidence)}
@@ -1834,6 +2095,17 @@ function DetailModal({ item, onClose, mumMode }) {
             {row("Departure", [...r.departurePorts, ...r.departureCities].join(" / "))}
             {row("Direct from Manchester", r.directFromManchester)}
             {row("Manchester access", `${r.ManchesterAccessScore}/10${r.approximateManchesterToStartHours ? ` · ~${r.approximateManchesterToStartHours}h to start` : ""}`)}
+            {r.isManchesterWeekendRoute && row("Weekend route base", r.routeBase)}
+            {r.isManchesterWeekendRoute && row("Weekend route type", r.weekendRouteType ?? r.routeType)}
+            {r.manchesterJourneyTime && row("Manchester journey band", `${r.manchesterJourneyTime.label} · planning estimate`)}
+            {r.isManchesterWeekendRoute && row("Likely transport", r.likelyTransportMode)}
+            {r.isManchesterWeekendRoute && row("Direct connection status", r.directConnectionStatus)}
+            {r.isManchesterWeekendRoute && row("Major transfers to base", r.majorTransferCountToBase)}
+            {r.isManchesterWeekendRoute && row("Car", r.carDependency)}
+            {r.isManchesterWeekendRoute && row("Friday evening departure", timingLabel(r.fridayEveningFeasible))}
+            {r.isManchesterWeekendRoute && row("Saturday morning departure", timingLabel(r.saturdayMorningFeasible))}
+            {r.isManchesterWeekendRoute && row("Sunday evening return", timingLabel(r.sundayEveningReturnFeasible))}
+            {r.isManchesterWeekendRoute && row("Weekend suitability", `${r.weekendSuitability}/10 · sorting estimate only`)}
             {row("Getting there", [r.flightRequired ? "flight" : null, r.trainPossible ? "train possible" : null, r.ferryPossible ? "ferry possible" : null, r.cruiseBased ? "cruise-based" : null, r.drivingRequired ? "driving required" : null].filter(Boolean).join(" · ") || "—")}
             {row("Overnight travel", r.overnightTravelRequired ? "Required" : r.overnightTravelPossible ? "Optional" : "Not needed")}
             {row("Transfers / hotel changes", `${TL_LABEL[r.typicalTransferLevel]} / ${TL_LABEL[r.hotelChanges] ?? r.hotelChanges}`)}
@@ -1878,7 +2150,13 @@ function DetailModal({ item, onClose, mumMode }) {
         </div>
 
         <div style={{ marginTop: 14, fontFamily: T.sans, fontSize: 12 }}>
-          <div style={{ fontFamily: T.sans, fontSize: 11, letterSpacing: 1, textTransform: "uppercase", color: T.muted, marginBottom: 4 }}>Official sources (from the Master Guide)</div>
+          {r.isManchesterWeekendRoute && (
+            <div style={{ marginBottom: 10, color: T.ink }}>
+              <strong style={{ color: T.moss }}>Weekend evidence:</strong> {r.evidenceNote}
+              <br /><strong style={{ color: T.moss }}>Suitability estimate:</strong> {r.weekendSuitabilityEvidence}
+            </div>
+          )}
+          <div style={{ fontFamily: T.sans, fontSize: 11, letterSpacing: 1, textTransform: "uppercase", color: T.muted, marginBottom: 4 }}>{r.isManchesterWeekendRoute ? "Official research sources" : "Official sources (from the Master Guide)"}</div>
           {r.officialSources.length ? r.officialSources.map((s) => (
             <a key={s.url} href={s.url} target="_blank" rel="noreferrer" style={{ color: T.moss, marginRight: 12 }}>{s.label} ↗</a>
           )) : <span style={{ color: T.muted }}>None recorded — verify with the official tourist board.</span>}
@@ -1902,7 +2180,7 @@ function CompareModal({ items, onClose, onRemove }) {
   const rows = [
     ["Match score", (i) => i.score.total, "high"],
     ["Estimated budget pp", (i) => i.r.budgetTypicalGBP, "low", (v) => fmtGBP(v)],
-    ["Ideal duration", (i) => i.r.idealDays, "low", (v) => `${v} days`],
+    ["Ideal duration", (i) => i.r.idealDurationDays, "low", (v) => `${v} days`],
     ["Best months", (i) => monthsLabel(i.r.bestMonths), null],
     ["Manchester convenience", (i) => i.r.ManchesterAccessScore, "high", (v) => `${v}/10`],
     ["Flight required", (i) => (i.r.flightRequired ? 1 : 0), "low", (v) => (v ? "Yes" : "No")],
@@ -1985,7 +2263,7 @@ function MatrixView({ items, onOpen, compareIds, onCompare }) {
     ["route", "Route", (i) => i.r.shortName],
     ["type", "Type", (i) => i.r.tripTypes[0] ?? "—"],
     ["months", "Best months", (i) => monthsLabel(i.r.bestMonths)],
-    ["days", "Days", (i) => i.r.idealDays],
+    ["days", "Days", (i) => i.r.idealDurationDays],
     ["budget", "Budget", (i) => i.r.budgetTypicalGBP],
     ["man", "MAN", (i) => i.r.ManchesterAccessScore],
     ["transfers", "Transfers", (i) => TL[i.r.typicalTransferLevel]],
@@ -2046,6 +2324,138 @@ function MatrixView({ items, onOpen, compareIds, onCompare }) {
 }
 
 /* ============================================================
+   DECISION WIZARD — entry point only; writes to existing filters
+   ============================================================ */
+function WizardProgress({ step }) {
+  return (
+    <div role="status" aria-live="polite" aria-label={`Step ${step} of 5`} style={{ marginBottom: 22 }}>
+      <div style={{ fontFamily: T.sans, fontSize: 12, color: T.muted, marginBottom: 7 }}>Step {step} of 5</div>
+      <div aria-hidden="true" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 5 }}>
+        {[1, 2, 3, 4, 5].map((n) => <span key={n} style={{ height: 5, borderRadius: 3, background: n <= step ? T.moss : T.lineSoft }} />)}
+      </div>
+    </div>
+  );
+}
+
+function WizardOptionCard({ label, description, selected, onClick, disabled }) {
+  return (
+    <button type="button" aria-pressed={selected} disabled={disabled} onClick={onClick} style={{
+      width: "100%", minHeight: 64, textAlign: "left", padding: "13px 15px", borderRadius: 7,
+      border: `2px solid ${selected ? T.moss : T.line}`, background: selected ? T.mossSoft : "#fff",
+      color: T.ink, cursor: disabled ? "not-allowed" : "pointer", opacity: disabled ? 0.45 : 1,
+      display: "flex", gap: 11, alignItems: "flex-start", fontFamily: T.sans,
+    }}>
+      <span aria-hidden="true" style={{ width: 20, height: 20, borderRadius: "50%", border: `1.5px solid ${selected ? T.moss : T.line}`, background: selected ? T.moss : "#fff", color: "#fff", display: "inline-flex", alignItems: "center", justifyContent: "center", fontSize: 12, flexShrink: 0 }}>{selected ? "✓" : ""}</span>
+      <span><span style={{ display: "block", fontSize: 15, fontWeight: 600 }}>{label}</span>{description && <span style={{ display: "block", fontSize: 12, color: T.muted, marginTop: 3, lineHeight: 1.4 }}>{description}</span>}</span>
+    </button>
+  );
+}
+
+function TravelWizard({ filters, onChange, step, setStep, onComplete, onSkip, onOpenAdvanced, onRestart }) {
+  const headingRef = useRef(null);
+  useEffect(() => { headingRef.current?.focus(); }, [step]);
+  const time = wizardTimeChoice(filters);
+  const companion = wizardCompanionChoice(filters);
+  const budget = wizardBudgetChoice(filters);
+  const experiences = inferredWizardExperiences(filters);
+  const important = wizardImportantChoice(filters);
+
+  if (step === 0) {
+    return (
+      <main style={{ minHeight: "100vh", background: T.paper, color: T.ink, padding: "clamp(28px, 8vw, 84px) 18px" }}>
+        <div style={{ maxWidth: 680, margin: "0 auto" }}>
+          <div style={{ fontFamily: T.sans, fontSize: 11, letterSpacing: 1.1, textTransform: "uppercase", color: T.carmine, marginBottom: 18 }}>Europe Travel Selector</div>
+          <h1 ref={headingRef} tabIndex="-1" style={{ fontFamily: T.serif, fontSize: "clamp(34px, 7vw, 52px)", lineHeight: 1.08, margin: 0, outline: "none" }}>Find your next trip</h1>
+          <p style={{ fontFamily: T.sans, fontSize: 17, lineHeight: 1.55, color: T.muted, maxWidth: 590, margin: "18px 0 30px" }}>Tell us how much time you have, your budget and what kind of experience you want.</p>
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 12 }}>
+            <button onClick={() => setStep(1)} style={{ fontFamily: T.sans, fontSize: 15, fontWeight: 600, padding: "12px 20px", border: "none", borderRadius: 6, background: T.ink, color: "#fff", cursor: "pointer" }}>Find my trip</button>
+            <button onClick={onSkip} style={{ fontFamily: T.sans, fontSize: 13, color: T.carmine, background: "none", border: "none", padding: "4px 0", textDecoration: "underline", cursor: "pointer" }}>Skip to advanced search</button>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  const selectTime = (choice) => {
+    const base = filters.manchesterWeekend ? filtersForImportantChoice(filters, "none") : filters;
+    onChange({ ...base, daysMin: choice.daysMin, daysMax: choice.daysMax, travelStyle: choice.travelStyle, wizardTimeChoice: choice.id });
+  };
+  const selectCompanion = (choice) => {
+    const currentImportant = wizardImportantChoice(filters);
+    onChange(filtersForImportantChoice(filtersForCompanion(filters, choice.id), currentImportant));
+  };
+  const selectBudget = (choice) => onChange({ ...filters, budgetMin: choice.budgetMin, budgetMax: choice.budgetMax, wizardBudgetChoice: choice.id });
+  const toggleExperience = (id) => {
+    let next;
+    if (id === "surprise") next = ["surprise"];
+    else {
+      const withoutSurprise = experiences.filter((x) => x !== "surprise");
+      next = withoutSurprise.includes(id) ? withoutSurprise.filter((x) => x !== id) : withoutSurprise.length < 3 ? [...withoutSurprise, id] : withoutSurprise;
+    }
+    onChange(filtersForExperiences(filters, next));
+  };
+  const titles = [null, "How much time do you have?", "Who are you travelling with?", "What is your estimated budget per person?", "What kind of trip are you looking for?", "Anything important?"];
+  const descriptions = [null, "Choose the time you can realistically set aside.", "This helps balance comfort, logistics and suitability.", "Use a rough estimate per person, including transport and accommodation.", "Choose up to three. These answers guide the existing match score.", "Optional — choose the condition or preference that matters most."];
+  const canContinue = step !== 4 || experiences.length > 0;
+
+  return (
+    <main style={{ minHeight: "100vh", background: T.paper, color: T.ink, padding: "24px 16px 50px" }}>
+      <div style={{ maxWidth: 720, margin: "0 auto" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginBottom: 24 }}>
+          <button onClick={() => setStep(Math.max(0, step - 1))} style={{ fontFamily: T.sans, fontSize: 13, color: T.carmine, background: "none", border: "none", padding: 0, textDecoration: "underline", cursor: "pointer" }}>← Back</button>
+          <button onClick={onRestart} style={{ fontFamily: T.sans, fontSize: 12, color: T.muted, background: "none", border: "none", padding: 0, textDecoration: "underline", cursor: "pointer" }}>Start again</button>
+        </div>
+        <WizardProgress step={step} />
+        <h1 ref={headingRef} tabIndex="-1" style={{ fontFamily: T.serif, fontSize: "clamp(27px, 6vw, 38px)", lineHeight: 1.15, margin: 0, outline: "none" }}>{titles[step]}</h1>
+        <p style={{ fontFamily: T.sans, fontSize: 14, color: T.muted, lineHeight: 1.5, margin: "10px 0 22px" }}>{descriptions[step]}</p>
+
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(250px, 1fr))", gap: 10 }}>
+          {step === 1 && WIZARD_TIME_OPTIONS.map((o) => <WizardOptionCard key={o.id} label={o.label} selected={time?.id === o.id} onClick={() => selectTime(o)} />)}
+          {step === 2 && WIZARD_COMPANION_OPTIONS.map((o) => <WizardOptionCard key={o.id} label={o.label} selected={companion?.id === o.id} onClick={() => selectCompanion(o)} />)}
+          {step === 3 && WIZARD_BUDGET_OPTIONS.map((o) => <WizardOptionCard key={o.id} label={o.label} selected={budget?.id === o.id} onClick={() => selectBudget(o)} />)}
+          {step === 4 && WIZARD_EXPERIENCE_OPTIONS.map((o) => <WizardOptionCard key={o.id} label={o.label} description={o.description} selected={experiences.includes(o.id)} disabled={!experiences.includes(o.id) && !experiences.includes("surprise") && experiences.length >= 3} onClick={() => toggleExperience(o.id)} />)}
+          {step === 5 && WIZARD_IMPORTANT_OPTIONS.map((o) => <WizardOptionCard key={o.id} label={o.label} selected={important === o.id} onClick={() => onChange(filtersForImportantChoice(filters, o.id))} />)}
+        </div>
+        {step === 4 && <div aria-live="polite" style={{ fontFamily: T.sans, fontSize: 12, color: experiences.length >= 3 ? T.carmine : T.muted, marginTop: 10 }}>{experiences.length} of 3 selected</div>}
+
+        <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, marginTop: 28, paddingTop: 18, borderTop: `1px solid ${T.line}` }}>
+          <button disabled={!canContinue} onClick={() => step === 5 ? onComplete() : setStep(step + 1)} style={{ fontFamily: T.sans, fontSize: 14, fontWeight: 600, padding: "10px 18px", border: "none", borderRadius: 6, background: canContinue ? T.ink : T.line, color: "#fff", cursor: canContinue ? "pointer" : "not-allowed" }}>{step === 5 ? "Show my recommendations" : "Continue"}</button>
+          <button onClick={onOpenAdvanced} style={{ fontFamily: T.sans, fontSize: 12.5, color: T.carmine, background: "none", border: "none", padding: "5px 0", textDecoration: "underline", cursor: "pointer" }}>Continue in advanced search</button>
+        </div>
+      </div>
+    </main>
+  );
+}
+
+function recommendationSummaryParts(f) {
+  const parts = [];
+  const time = wizardTimeChoice(f); if (time && time.id !== "flexible") parts.push(time.summary ?? time.label);
+  const companion = wizardCompanionChoice(f); if (companion && companion.id !== "undecided") parts.push(companion.summary ?? companion.label);
+  const budget = wizardBudgetChoice(f); if (budget && budget.id !== "flexible") parts.push(budget.summary ?? budget.label);
+  const experienceIds = f.wizardExperienceChoices?.length ? f.wizardExperienceChoices : [];
+  if (experienceIds.includes("surprise")) parts.push("Broad discovery");
+  else experienceIds.slice(0, 3).forEach((id) => { const option = WIZARD_EXPERIENCE_OPTIONS.find((o) => o.id === id); if (option) parts.push(option.label); });
+  if (!experienceIds.length) f.interests.slice(0, 2).forEach((id) => { const option = INTERESTS.find(([key]) => key === id); if (option) parts.push(option[1]); });
+  const importantId = wizardImportantChoice(f);
+  const important = WIZARD_IMPORTANT_OPTIONS.find((o) => o.id === importantId);
+  if (important && important.id !== "none" && important.id !== "manweekend") parts.push(important.label);
+  return parts.length ? parts : ["Flexible recommendations"];
+}
+
+function RecommendationSummary({ filters, count, onEdit, onRefine }) {
+  return (
+    <section aria-label="Your recommendation summary" style={{ background: T.mossSoft, border: `1px solid ${T.moss}44`, borderRadius: 8, padding: "13px 15px", marginBottom: 12 }}>
+      <div style={{ fontFamily: T.serif, fontSize: 16, color: T.ink }}><strong>Your recommendations:</strong> {recommendationSummaryParts(filters).join(" · ")}</div>
+      <div style={{ fontFamily: T.sans, fontSize: 11.5, color: T.muted, marginTop: 4 }}>{count} matching routes, ranked by the existing Best match score.</div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8, marginTop: 9 }}>
+        <button onClick={onEdit} style={{ fontFamily: T.sans, fontSize: 11.5, padding: "5px 9px", border: `1px solid ${T.moss}`, borderRadius: 5, background: "#fff", color: T.moss, cursor: "pointer" }}>Edit answers</button>
+        <button onClick={onRefine} style={{ fontFamily: T.sans, fontSize: 11.5, padding: "5px 9px", border: "none", borderRadius: 5, background: T.ink, color: "#fff", cursor: "pointer" }}>Refine with advanced filters</button>
+      </div>
+    </section>
+  );
+}
+
+/* ============================================================
    APP
    ============================================================ */
 export default function EuropeTravelSelector() {
@@ -2062,6 +2472,11 @@ export default function EuropeTravelSelector() {
   const [showExcluded, setShowExcluded] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [activePreset, setActivePreset] = useState(null);
+  const [appMode, setAppMode] = useState("wizard");
+  const [wizardStep, setWizardStep] = useState(0);
+  const [wizardCompleted, setWizardCompleted] = useState(false);
+  const [wizardResultActive, setWizardResultActive] = useState(false);
+  const [stateReady, setStateReady] = useState(false);
   const loaded = useRef(false);
 
   useEffect(() => {
@@ -2073,20 +2488,39 @@ export default function EuropeTravelSelector() {
         if (s.view) setView(s.view);
         setFavs(s.favs ?? []); setHidden(s.hidden ?? []); setCompareIds(s.compareIds ?? []);
       }
+      const completed = s?.wizardCompleted ?? Boolean(s);
+      setWizardCompleted(completed);
+      setWizardResultActive(s?.wizardResultActive ?? false);
+      setAppMode(completed ? "selector" : "wizard");
       loaded.current = true;
+      setStateReady(true);
     })();
   }, []);
   useEffect(() => {
-    if (loaded.current) saveState({ filters, sortBy, view, favs, hidden, compareIds });
-  }, [filters, sortBy, view, favs, hidden, compareIds]);
+    if (loaded.current) saveState({ filters, sortBy, view, favs, hidden, compareIds, wizardCompleted, wizardResultActive });
+  }, [filters, sortBy, view, favs, hidden, compareIds, wizardCompleted, wizardResultActive]);
 
-  const setFilters = (f) => { setFiltersRaw(f); setActivePreset(null); };
+  const clearWizardChoiceMetadata = (f) => ({ ...f, travelStyle: null, wizardTimeChoice: null, wizardBudgetChoice: null, wizardExperienceChoices: [], wizardImportantChoice: null });
+  const setFilters = (f) => { setFiltersRaw(clearWizardChoiceMetadata(f)); setActivePreset(null); };
+  const setWizardFilters = (f) => { setFiltersRaw(f); setActivePreset(null); };
   const applyPreset = (p) => {
     setFiltersRaw({ ...DEFAULT_FILTERS, ...p.f });
     setSortBy(p.sort ?? "match");
     setActivePreset(p.id);
+    setWizardResultActive(false);
   };
-  const resetAll = () => { setFiltersRaw(DEFAULT_FILTERS); setSortBy("match"); setActivePreset(null); setShowFavsOnly(false); };
+  const resetAll = () => { setFiltersRaw(DEFAULT_FILTERS); setSortBy("match"); setActivePreset(null); setShowFavsOnly(false); setWizardResultActive(false); };
+  const restartWizard = () => {
+    setFiltersRaw(DEFAULT_FILTERS); setSortBy("match"); setActivePreset(null); setShowFavsOnly(false);
+    setWizardResultActive(false); setWizardCompleted(false); setWizardStep(0); setAppMode("wizard");
+  };
+  const editWizardAnswers = () => { setWizardCompleted(false); setWizardStep(1); setAppMode("wizard"); };
+  const completeWizard = () => { setSortBy("match"); setActivePreset(null); setWizardCompleted(true); setWizardResultActive(true); setAppMode("selector"); };
+  const skipWizard = () => {
+    setFiltersRaw(DEFAULT_FILTERS); setSortBy("match"); setActivePreset(null);
+    setWizardCompleted(true); setWizardResultActive(false); setAppMode("selector");
+  };
+  const openAdvancedFromWizard = () => { setSortBy("match"); setWizardCompleted(true); setWizardResultActive(wizardStep > 0); setAppMode("selector"); };
 
   const toggleIn = (arr, setArr, id) => setArr(arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id]);
   const toggleCompare = (id) =>
@@ -2111,8 +2545,48 @@ export default function EuropeTravelSelector() {
 
   const compareItems = matched.filter((i) => compareIds.includes(i.r.id));
   const hiddenCount = matched.filter((i) => hidden.includes(i.r.id)).length;
+  const exclusionGroups = useMemo(() => {
+    const groups = new Map();
+    for (const item of excluded) {
+      const meta = exclusionGroupFor(item.reasons[0]);
+      const group = groups.get(meta.key) ?? { ...meta, items: [] };
+      group.items.push(item);
+      groups.set(meta.key, group);
+    }
+    return [...groups.values()].sort((a, b) => b.items.length - a.items.length || a.label.localeCompare(b.label));
+  }, [excluded]);
+
+  const relaxExclusion = (group) => {
+    const next = { ...filters };
+    switch (group.key) {
+      case "budget":
+        next.budgetMax = Math.min(5000, Math.max(filters.budgetMax, ...group.items.map(({ r }) => r.budgetMinGBP ?? filters.budgetMax)));
+        break;
+      case "duration":
+        next.daysMax = Math.min(21, Math.max(filters.daysMax, ...group.items.map(({ r }) => r.minimumDurationDays)));
+        break;
+      case "travel-style": next.travelStyle = null; next.wizardTimeChoice = null; break;
+      case "month": next.month = 0; break;
+      case "effort": next.maxEffort = Math.min(5, Math.max(filters.maxEffort, ...group.items.map(({ r }) => r.physicalEffort))); break;
+      case "walking": next.maxWalking = Math.min(5, Math.max(filters.maxWalking, ...group.items.map(({ r }) => r.walkingLevel))); break;
+      case "driving": next.noDriving = false; break;
+      case "flying": next.noFlying = false; break;
+      case "overnight": next.noOvernight = false; break;
+      case "mum": next.mumOnly = false; break;
+      case "stairs": next.avoidStairs = false; break;
+      case "trip-type": next.tripTypes = []; break;
+      case "environment": next.env = []; break;
+      case "once": next.onceOnly = false; break;
+      case "solo": next.companion = "any"; break;
+      case "transfers": next.maxOneTransfer = false; break;
+      case "weekend-mode": next.manchesterWeekend = false; break;
+      default: resetAll(); return;
+    }
+    setFilters(next);
+  };
 
   const activeChips = [];
+  if (filters.manchesterWeekend) activeChips.push(["Manchester weekend mode", () => setFilters({ ...filters, manchesterWeekend: false })]);
   if (filters.month) activeChips.push([`Month: ${MONTHS[filters.month - 1]}`, () => setFilters({ ...filters, month: 0 })]);
   if (filters.daysMin !== 2 || filters.daysMax !== 21) activeChips.push([`${filters.daysMin}–${filters.daysMax} days`, () => setFilters({ ...filters, daysMin: 2, daysMax: 21 })]);
   if (filters.budgetMax !== 5000 || filters.budgetMin !== 100) activeChips.push([`£${filters.budgetMin}–£${filters.budgetMax}`, () => setFilters({ ...filters, budgetMin: 100, budgetMax: 5000 })]);
@@ -2127,6 +2601,17 @@ export default function EuropeTravelSelector() {
 
   const isDesktop = typeof window !== "undefined" && window.innerWidth >= 900;
 
+  const refineAdvanced = () => {
+    if (!isDesktop) setDrawerOpen(true);
+    else document.getElementById("advanced-filters")?.scrollIntoView({ block: "start" });
+  };
+
+  if (!stateReady) return <div aria-busy="true" aria-label="Loading travel selector" style={{ minHeight: "100vh", background: T.paper }} />;
+  if (appMode === "wizard") return (
+    <TravelWizard filters={filters} onChange={setWizardFilters} step={wizardStep} setStep={setWizardStep}
+      onComplete={completeWizard} onSkip={skipWizard} onOpenAdvanced={openAdvancedFromWizard} onRestart={restartWizard} />
+  );
+
   return (
     <div style={{ minHeight: "100vh", background: T.paper, color: T.ink }}>
       {/* header */}
@@ -2135,6 +2620,7 @@ export default function EuropeTravelSelector() {
           <div style={{ display: "flex", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
             <h1 style={{ fontFamily: T.serif, fontSize: 26, margin: 0, color: T.ink }}>Europe Travel Selector</h1>
             <span style={{ fontFamily: T.sans, fontSize: 11, color: T.carmine, border: `1px solid ${T.carmine}`, borderRadius: 3, padding: "1px 6px", transform: "rotate(-2deg)" }}>from the Master Guide</span>
+            <button onClick={restartWizard} style={{ marginLeft: "auto", fontFamily: T.sans, fontSize: 11.5, color: T.carmine, background: "none", border: "none", padding: 0, textDecoration: "underline", cursor: "pointer" }}>Find another trip</button>
           </div>
           <p style={{ fontFamily: T.sans, fontSize: 12.5, color: T.muted, margin: "4px 0 10px", maxWidth: 620 }}>
             Find the right European trip by month, budget, time and travel style — from a Manchester-based perspective. Budgets are per-person estimates; anything schedule-dependent is flagged for live verification.
@@ -2151,12 +2637,13 @@ export default function EuropeTravelSelector() {
       <div style={{ maxWidth: 1280, margin: "0 auto", display: "flex", gap: 18, padding: "14px 18px", alignItems: "flex-start" }}>
         {/* desktop filter panel */}
         {isDesktop && (
-          <aside style={{ width: 270, flexShrink: 0, background: T.panel, border: `1px solid ${T.line}`, borderRadius: 8, padding: 14, position: "sticky", top: 12, maxHeight: "92vh", overflowY: "auto" }}>
+          <aside id="advanced-filters" style={{ width: 270, flexShrink: 0, background: T.panel, border: `1px solid ${T.line}`, borderRadius: 8, padding: 14, position: "sticky", top: 12, maxHeight: "92vh", overflowY: "auto", scrollMarginTop: 12 }}>
             <FilterPanel f={filters} set={setFilters} onClear={resetAll} />
           </aside>
         )}
 
         <main style={{ flex: 1, minWidth: 0 }}>
+          {wizardResultActive && <RecommendationSummary filters={filters} count={visible.length} onEdit={editWizardAnswers} onRefine={refineAdvanced} />}
           {/* toolbar */}
           <div style={{ display: "flex", flexWrap: "wrap", gap: 8, alignItems: "center", marginBottom: 8 }}>
             {!isDesktop && (
@@ -2166,7 +2653,7 @@ export default function EuropeTravelSelector() {
             )}
             <span style={{ fontFamily: T.serif, fontSize: 14 }}>
               <strong>{visible.length}</strong> routes match
-              <button onClick={() => setShowExcluded(!showExcluded)} style={{ fontFamily: T.sans, fontSize: 11.5, color: T.carmine, background: "none", border: "none", cursor: "pointer" }}>
+              <button onClick={() => setShowExcluded(!showExcluded)} aria-expanded={showExcluded} style={{ fontFamily: T.sans, fontSize: 11.5, color: T.carmine, background: "none", border: "none", cursor: "pointer" }}>
                 · {excluded.length} excluded by hard filters {showExcluded ? "▴" : "▾"}
               </button>
             </span>
@@ -2198,13 +2685,16 @@ export default function EuropeTravelSelector() {
           {/* excluded reasons */}
           {showExcluded && (
             <div style={{ background: T.carmineSoft, border: `1px solid ${T.carmine}33`, borderRadius: 8, padding: 12, marginBottom: 12, fontFamily: T.sans, fontSize: 12 }}>
-              <div style={{ fontWeight: 600, color: T.carmine, marginBottom: 6 }}>Excluded by your hard filters</div>
-              {excluded.length === 0 ? <span style={{ color: T.muted }}>Nothing excluded yet.</span> :
-                excluded.map(({ r, reasons }) => (
-                  <div key={r.id} style={{ padding: "3px 0", borderTop: `1px solid ${T.carmine}22`, color: T.ink }}>
-                    <strong style={{ fontFamily: T.serif }}>{r.shortName}</strong> — {reasons[0]}
-                  </div>
-                ))}
+              <div style={{ fontWeight: 600, color: T.carmine, marginBottom: 3 }}>Excluded by your must-have conditions</div>
+              <div style={{ color: T.muted, fontSize: 10.5, marginBottom: 7 }}>Each route is counted under its first blocking condition, so the totals add up.</div>
+              {excluded.length === 0 ? <span style={{ color: T.muted }}>Nothing excluded yet.</span> : exclusionGroups.map((group) => (
+                <div key={group.key} style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 0", borderTop: `1px solid ${T.carmine}22`, color: T.ink }}>
+                  <span style={{ flex: 1 }}><strong>{group.items.length}</strong> {group.label}</span>
+                  <button onClick={() => relaxExclusion(group)} title={`Relax condition: ${group.label}`} style={{ fontFamily: T.sans, fontSize: 10.5, color: T.carmine, background: "#fff", border: `1px solid ${T.carmine}55`, borderRadius: 4, padding: "3px 7px", cursor: "pointer", whiteSpace: "nowrap" }}>
+                    {group.actionLabel}
+                  </button>
+                </div>
+              ))}
             </div>
           )}
 
@@ -2268,7 +2758,7 @@ export default function EuropeTravelSelector() {
       )}
 
       <footer style={{ maxWidth: 1280, margin: "0 auto", padding: "18px", fontFamily: T.sans, fontSize: 10.5, color: T.muted, paddingBottom: compareIds.length ? 70 : 18 }}>
-        Data source: the Europe Travel Master Guide (2026). All budgets are per-person planning estimates (twin-share where stated), not quotes. Flight routes, sailing dates, seasonal openings and prices change — items marked "Needs live verification" must be checked against official sources before booking.
+        Data source: the Europe Travel Master Guide (2026), plus linked official destination and transport sources for Manchester Weekend routes. All budgets, weekend suitability and journey-time bands are planning estimates, not quotes or live timetables. Items marked "Needs live verification" must be checked against official sources before booking.
       </footer>
     </div>
   );

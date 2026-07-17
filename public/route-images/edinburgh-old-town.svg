@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 900" role="img" aria-labelledby="title desc">
+  <title id="title">Edinburgh Old Town illustration</title>
+  <desc id="desc">A layered stone skyline beneath a moody blue-grey sky with the castle on its ridge.</desc>
+  <defs><linearGradient id="sky" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#879ca8"/><stop offset="1" stop-color="#ddd2bf"/></linearGradient></defs>
+  <rect width="1600" height="900" fill="url(#sky)"/>
+  <path d="M0 660l250-45 225-155 320 85 285-180 260 130 260 40v365H0z" fill="#4e5558"/>
+  <path d="M110 565h390v235H110zM570 500h260v300H570zM890 470h320v330H890zM1260 550h260v250h-260z" fill="#79766f"/>
+  <g fill="#a99d88"><path d="M155 610h55v90h-55zM255 590h55v110h-55zM355 570h55v130h-55z"/><path d="M620 560h48v100h-48zM720 545h48v115h-48z"/><path d="M945 525h55v120h-55zM1050 510h55v135h-55z"/><path d="M1310 600h52v95h-52zM1410 590h52v105h-52z"/></g>
+  <path d="M650 290h320v210H650z" fill="#45494b"/><path d="M610 280h400v60H610z" fill="#45494b"/><path d="M680 205h85v85h-85zM870 220h90v70h-90z" fill="#45494b"/>
+  <path d="M0 790h1600v110H0z" fill="#3e4547"/><path d="M0 805c290-50 490 38 790 0 310-38 530 28 810-4" fill="none" stroke="#938b7d" stroke-width="18"/>
+  <circle cx="1280" cy="185" r="68" fill="#e3d5b7" opacity=".65"/>
+</svg>
